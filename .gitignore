@@ -36,6 +36,6 @@ keys.json
 repos/
 nodes.json
 update.apk
-.mcubed_backup/
-.mcubed_update.json
+.mhexeract_backup/
+.mhexeract_update.json
 zipadd/

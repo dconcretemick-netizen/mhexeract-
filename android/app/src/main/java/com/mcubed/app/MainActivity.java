@@ -102,7 +102,7 @@ public class MainActivity extends Activity {
                 Uri u = req.getUrl();
                 if ("127.0.0.1".equals(u.getHost())) return false;
                 String scheme = u.getScheme();
-                if ("mcubed".equals(scheme)) { // mcubed://install-update from the Update tab
+                if ("mhexeract".equals(scheme)) { // mhexeract://install-update from the Update tab
                     if ("install-update".equals(u.getHost())) installUpdate();
                     if ("close-app".equals(u.getHost())) confirmClose(); // dashboard's Close app button
                     return true;
@@ -151,7 +151,7 @@ public class MainActivity extends Activity {
             } catch (Throwable t) {
                 runOnUiThread(() -> status.setText("MHexeract failed to start:\n" + t.getMessage()));
             }
-        }, "mcubed-start").start();
+        }, "mhexeract-start").start();
     }
 
     private File keysFile() {
@@ -443,7 +443,7 @@ public class MainActivity extends Activity {
                 int id = pi.createSession(params);
                 PackageInstaller.Session session = pi.openSession(id);
                 try (InputStream in = new FileInputStream(apk);
-                     OutputStream out = session.openWrite("mcubed.apk", 0, apk.length())) {
+                     OutputStream out = session.openWrite("mhexeract.apk", 0, apk.length())) {
                     byte[] buf = new byte[1 << 16];
                     int n;
                     while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
@@ -459,7 +459,7 @@ public class MainActivity extends Activity {
                 final String msg = e.getMessage();
                 runOnUiThread(() -> Toast.makeText(this, "Update failed: " + msg, Toast.LENGTH_LONG).show());
             }
-        }, "mcubed-install").start();
+        }, "mhexeract-install").start();
     }
 
     private void handleInstallStatus(Intent intent) {

@@ -17,7 +17,7 @@ import android.os.IBinder;
  * service only holds the process open and shows the required notification.
  */
 public class GatewayService extends Service {
-    private static final String CHANNEL = "mcubed_gateway";
+    private static final String CHANNEL = "mhexeract_gateway";
     private static final int NOTIFICATION_ID = 42;
 
     public static void start(Context ctx) {

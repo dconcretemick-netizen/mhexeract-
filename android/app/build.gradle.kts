@@ -52,7 +52,7 @@ android {
     val ks = System.getenv("MCUBED_KEYSTORE_FILE")
     signingConfigs {
         if (ks != null && file(ks).exists()) {
-            create("mcubed") {
+            create("mhexeract") {
                 storeFile = file(ks)
                 storeType = "pkcs12"
                 storePassword = System.getenv("MCUBED_KEYSTORE_PASSWORD")
@@ -71,7 +71,7 @@ android {
         release {
             isMinifyEnabled = false
             // Local builds without the key fall back to the debug key.
-            signingConfig = signingConfigs.findByName("mcubed") ?: signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("mhexeract") ?: signingConfigs.getByName("debug")
         }
     }
 

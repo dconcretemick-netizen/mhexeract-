@@ -9,8 +9,8 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2314b8a6'/%3E%3Cpath d='M14 46V18l9 14 9-14 9 14 9-14v28' fill='none' stroke='%230f1417' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E">
 <title>MHexeract Gateway</title>
-<style data-mcubed-ui-polish>
-/* mcubed-ui-polish v2: automated Android UI improvements, injected by the gateway */
+<style data-mhexeract-ui-polish>
+/* mhexeract-ui-polish v2: automated Android UI improvements, injected by the gateway */
 html{-webkit-tap-highlight-color:transparent}
 html,body{overflow-x:hidden;overflow-x:clip}
 body{overscroll-behavior-y:none}
@@ -458,7 +458,7 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
   <section class="view" id="v-playground">
     <div class="chat">
       <div class="chat-top">
-        <select id="model" class="ctl" aria-label="Model"><option value="mcubed">MHexeract (auto)</option><option value="mcubed-efficient">MHexeract fast</option><option value="mcubed-quality">MHexeract best quality</option><option value="mcubed-council">Council — models confer for the best answer</option></select>
+        <select id="model" class="ctl" aria-label="Model"><option value="mhexeract">MHexeract (auto)</option><option value="mhexeract-efficient">MHexeract fast</option><option value="mhexeract-quality">MHexeract best quality</option><option value="mhexeract-council">Council — models confer for the best answer</option></select>
         <button class="btn" id="btn-units" aria-expanded="false" aria-controls="units-info" title="AI units in use"><span class="u-dot" id="units-dot"></span><span id="units-count">AI</span></button>
         <button class="btn" id="btn-api" aria-expanded="false" aria-controls="api-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg>API</button>
         <button class="btn" id="btn-newchat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>New chat</button>
@@ -473,9 +473,9 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
       </div>
       <div class="card api-info" id="api-info" hidden>
         <h2>Use MHexeract as an OpenAI model</h2>
-        <p>Any app or SDK that talks to OpenAI can use MHexeract. Point it at this base URL and pick model <code>mcubed</code>. The router chooses the best available model for each request.</p>
+        <p>Any app or SDK that talks to OpenAI can use MHexeract. Point it at this base URL and pick model <code>mhexeract</code>. The router chooses the best available model for each request.</p>
         <div class="kv"><span>Base URL</span><code id="api-base"></code><button class="btn sm" data-copy="api-base">Copy</button></div>
-        <div class="kv"><span>Model</span><code>mcubed</code><span class="hint">also mcubed-efficient, mcubed-quality, or any pool alias</span></div>
+        <div class="kv"><span>Model</span><code>mhexeract</code><span class="hint">also mhexeract-efficient, mhexeract-quality, or any pool alias</span></div>
         <div class="kv"><span>API key</span><code id="api-key">your gateway token (any text if none is set)</code></div>
         <pre class="out" id="api-snippet"></pre>
       </div>
@@ -899,7 +899,7 @@ async function load(){
 }
 
 /* ---------- interactions ---------- */
-let statsView=localStorage.getItem("mcubed.stats")||"overview";
+let statsView=localStorage.getItem("mhexeract.stats")||"overview";
 function showView(v){
   const isStats=v==="stats"; const target=isStats?statsView:v;
   $("#stats-seg").hidden=!isStats;
@@ -917,7 +917,7 @@ document.querySelectorAll("nav.tabs button").forEach(b=>b.addEventListener("clic
   showView(b.dataset.v); document.querySelector("main").scrollTo({top:0});
 }));
 document.querySelectorAll("#stats-seg [data-s]").forEach(x=>x.addEventListener("click",()=>{
-  statsView=x.dataset.s; localStorage.setItem("mcubed.stats",statsView); showView("stats") }));
+  statsView=x.dataset.s; localStorage.setItem("mhexeract.stats",statsView); showView("stats") }));
 /* All navigation lives in the header dropdown (a scroll menu); phones have no bottom bar. */
 const menuPanel=$("#menu-panel"), menuBtn=$("#menu-btn");
 function closeMenu(){ menuPanel.hidden=true; menuBtn.setAttribute("aria-expanded","false") }
@@ -925,7 +925,7 @@ menuBtn.addEventListener("click",e=>{ e.stopPropagation(); const open=menuPanel.
 document.addEventListener("click",e=>{ if(!menuPanel.hidden && !e.target.closest(".menu-wrap")) closeMenu() });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeMenu() });
 document.querySelectorAll("#menu-panel [data-s]").forEach(x=>x.addEventListener("click",()=>{
-  statsView=x.dataset.s; localStorage.setItem("mcubed.stats",statsView);
+  statsView=x.dataset.s; localStorage.setItem("mhexeract.stats",statsView);
   document.querySelectorAll("nav.tabs button").forEach(b=>b.setAttribute("aria-selected","false"));
   closeMenu(); showView("stats"); document.querySelector("main").scrollTo({top:0});
 }));
@@ -995,21 +995,21 @@ $("#btn-repos").addEventListener("click",async()=>{
 });
 loadRepos();
 /* ---------- games: Solitaire and Doom share one tab ---------- */
-let game=localStorage.getItem("mcubed.game")||"solitaire";
+let game=localStorage.getItem("mhexeract.game")||"solitaire";
 function syncGames(visible){
   document.querySelectorAll(".seg [data-g]").forEach(x=>x.setAttribute("aria-selected",String(x.dataset.g===game)));
   $("#g-solitaire").hidden=game!=="solitaire"; $("#g-tetris").hidden=game!=="tetris"; $("#g-pip").hidden=game!=="pip"; $("#g-doom").hidden=game!=="doom"; $("#g-oregon").hidden=game!=="oregon"; $("#g-blackjack").hidden=game!=="blackjack";
   const sf=$("#sol-frame"), tf=$("#tet-frame"), df=$("#doom-frame");
   if(visible&&game==="solitaire"&&!sf.src) sf.src=sf.dataset.src;          // Solitaire stays loaded and keeps its state
   if(visible&&game==="tetris"&&!tf.src) tf.src=tf.dataset.src;             // Tetris pauses itself when hidden
-  if((!visible||game!=="tetris")&&tf.src) tf.contentWindow?.postMessage("mcubed:pause","*");
+  if((!visible||game!=="tetris")&&tf.src) tf.contentWindow?.postMessage("mhexeract:pause","*");
   const pf=$("#pip-frame"); if(visible&&game==="pip"&&!pf.src) pf.src=pf.dataset.src;
   const of=$("#oregon-frame"); if(visible&&game==="oregon"&&!of.src) of.src=of.dataset.src;   // Oregon Trail stays loaded; it saves its own progress
   const bf=$("#bj-frame"); if(visible&&game==="blackjack"&&!bf.src) bf.src=bf.dataset.src;
-  if((!visible||game!=="pip")&&pf.src) pf.contentWindow?.postMessage("mcubed:pause","*");
+  if((!visible||game!=="pip")&&pf.src) pf.contentWindow?.postMessage("mhexeract:pause","*");
   if(visible&&game==="doom"){ if(!df.src) df.src=df.dataset.src } else if(df.src) df.removeAttribute("src");  // Doom unloads to save battery
 }
-document.querySelectorAll(".seg [data-g]").forEach(x=>x.addEventListener("click",()=>{game=x.dataset.g;localStorage.setItem("mcubed.game",game);syncGames(true)}));
+document.querySelectorAll(".seg [data-g]").forEach(x=>x.addEventListener("click",()=>{game=x.dataset.g;localStorage.setItem("mhexeract.game",game);syncGames(true)}));
 syncGames(false);
 
 /* ---------- news: many outlets left to right, grouped by story ---------- */
@@ -1135,7 +1135,7 @@ async function waitForRestart(prev){
 $("#upd-apply").addEventListener("click",async()=>{
   const b=$("#upd-apply"); b.disabled=true; const apk=UPD?.mode==="apk"; b.textContent=apk?"Downloading…":"Updating…";
   try{
-    if(apk){ const r=await api("/api/update/apk",{method:"POST"}); toast(`Downloaded ${Math.round(r.size/1048576)} MB. Opening the installer`); location.href="mcubed://install-update"; b.textContent="Install again"; b.disabled=false; return }
+    if(apk){ const r=await api("/api/update/apk",{method:"POST"}); toast(`Downloaded ${Math.round(r.size/1048576)} MB. Opening the installer`); location.href="mhexeract://install-update"; b.textContent="Install again"; b.disabled=false; return }
     const r=await api("/api/update/apply",{method:"POST"}); const o=$("#upd-out"); o.hidden=false;
     o.textContent=r.mode==="git"?r.output:`Updated ${r.changed.length} files: ${r.changed.join(", ")||"none"}`+(r.kept_your_edits?.length?`\nKept your edited ${r.kept_your_edits.join(", ")} (new version saved as .new)`:"");
     if(r.restart){ b.textContent="Restarting…"; await waitForRestart() } else { toast("Already up to date"); loadUpdate(true) }
@@ -1149,7 +1149,7 @@ $("#upd-rollback").addEventListener("click",async()=>{
 if(!STATIC) setTimeout(()=>api("/api/update").then(u=>{ UPD=u; $("#upd-dot").hidden=!u.available }).catch(()=>{}),2500);
 
 /* ---------- web browser (reader mode + full page) ---------- */
-let page=null, webHist=[], recent=[]; try{recent=JSON.parse(localStorage.getItem("mcubed.web")||"[]")}catch(e){}
+let page=null, webHist=[], recent=[]; try{recent=JSON.parse(localStorage.getItem("mhexeract.web")||"[]")}catch(e){}
 function renderRecent(){ $("#web-recent").innerHTML=recent.slice(0,6).map(r=>`<button class="chip-btn" data-u="${esc(r.url)}">${esc(r.title.slice(0,60))}</button>`).join("");
   $("#web-recent").querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>openWeb(b.dataset.u)) }
 async function openWeb(u,push=true){
@@ -1164,7 +1164,7 @@ async function openWeb(u,push=true){
     box.innerHTML=`<h1>${esc(r.title)}</h1><div class="src">${esc(r.url)}</div>${paras||'<p class="empty">This page has no readable text. Try Open page.</p>'}`+
       (r.links.length?`<h3>Links</h3><ul class="links">${r.links.slice(0,80).map((l,i)=>`<li><button data-i="${i}">${esc(l.text)}</button><small>${esc(l.url)}</small></li>`).join("")}</ul>`:"");
     box.querySelectorAll(".links [data-i]").forEach(b=>b.onclick=()=>openWeb(r.links[+b.dataset.i].url));
-    recent=[{url:r.url,title:r.title},...recent.filter(x=>x.url!==r.url)].slice(0,12); localStorage.setItem("mcubed.web",JSON.stringify(recent));
+    recent=[{url:r.url,title:r.title},...recent.filter(x=>x.url!==r.url)].slice(0,12); localStorage.setItem("mhexeract.web",JSON.stringify(recent));
     window.scrollTo({top:0});
   }catch(e){ box.innerHTML=`<p class="empty">${esc(e.message)}</p>` }
 }
@@ -1177,8 +1177,8 @@ $("#web-ask").addEventListener("click",()=>{ if(!page) return;
 renderRecent();
 
 /* ---------- main chat (OpenAI-style) ---------- */
-let convo=[]; try{convo=JSON.parse(localStorage.getItem("mcubed.chat")||"[]")}catch(e){convo=[]}
-const saveConvo=()=>{try{localStorage.setItem("mcubed.chat",JSON.stringify(convo.slice(-80)))}catch(e){}};
+let convo=[]; try{convo=JSON.parse(localStorage.getItem("mhexeract.chat")||"[]")}catch(e){convo=[]}
+const saveConvo=()=>{try{localStorage.setItem("mhexeract.chat",JSON.stringify(convo.slice(-80)))}catch(e){}};
 function md(t){  // tiny safe markdown: code blocks, inline code, bold, paragraphs
   const parts=String(t).split(/```/); let h="";
   parts.forEach((p,i)=>{ if(i%2){ const nl=p.indexOf("\n"); h+=`<pre><code>${esc(nl>=0&&nl<20?p.slice(nl+1):p)}</code></pre>` }
@@ -1218,10 +1218,10 @@ async function sendChat(text){
   if(STATIC){ toast("Run python gateway.py gui to chat"); return }
   sending=true; $("#send").disabled=true; $("#prompt").value=""; growPrompt();
   convo.push({role:"user",content:text}); saveConvo(); renderChat(true);
-  const sel=$("#model").value, strat={mcubed:"balanced","mcubed-efficient":"efficient","mcubed-quality":"quality"}[sel];
+  const sel=$("#model").value, strat={mhexeract:"balanced","mhexeract-efficient":"efficient","mhexeract-quality":"quality"}[sel];
   try{
     const r=await api("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({messages:convo.filter(m=>!m.error).map(m=>({role:m.role,content:m.content})),strategy:strat||null,model:strat?null:sel,council:sel==="mcubed-council"})});
+      body:JSON.stringify({messages:convo.filter(m=>!m.error).map(m=>({role:m.role,content:m.content})),strategy:strat||null,model:strat?null:sel,council:sel==="mhexeract-council"})});
     lastReq=r.request_id; convo.push({role:"assistant",content:r.text,meta:r}); setTimeout(loadUnits,300);
   }catch(e){ convo.push({role:"assistant",content:"Could not get an answer: "+e.message+". Add a key in AI keys (or .env), or pick another model.",error:true}) }
   finally{ sending=false; $("#send").disabled=false; saveConvo(); renderChat(); $("#prompt").focus() }
@@ -1232,19 +1232,19 @@ $("#prompt").addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey&&!e
 $("#composer").addEventListener("submit",e=>{ e.preventDefault(); sendChat($("#prompt").value) });
 document.querySelectorAll("#chat-empty .chip-btn").forEach(b=>b.addEventListener("click",()=>sendChat(b.dataset.q||b.textContent)));
 $("#btn-newchat").addEventListener("click",()=>{ convo=[]; saveConvo(); renderChat(); $("#prompt").focus() });
-$("#model").value=localStorage.getItem("mcubed.model")||"mcubed";
-$("#model").addEventListener("change",()=>localStorage.setItem("mcubed.model",$("#model").value));
+$("#model").value=localStorage.getItem("mhexeract.model")||"mhexeract";
+$("#model").addEventListener("change",()=>localStorage.setItem("mhexeract.model",$("#model").value));
 function fillModels(){  // add every pool model that has a working key
-  if(!R||!R.models) return; const sel=$("#model"), cur=localStorage.getItem("mcubed.model")||sel.value;
+  if(!R||!R.models) return; const sel=$("#model"), cur=localStorage.getItem("mhexeract.model")||sel.value;
   sel.querySelectorAll("optgroup").forEach(g=>g.remove());
   const g=document.createElement("optgroup"); g.label="Specific model";
   R.models.filter(m=>m.routes.some(r=>r.available)).forEach(m=>{const o=document.createElement("option"); o.value=m.alias; o.textContent=`${m.alias} (${m.tier})`; g.appendChild(o)});
   if(g.children.length) sel.appendChild(g);
-  sel.value=[...sel.options].some(o=>o.value===cur)?cur:"mcubed";
+  sel.value=[...sel.options].some(o=>o.value===cur)?cur:"mhexeract";
 }
 $("#btn-api").addEventListener("click",()=>{ const box=$("#api-info"); box.hidden=!box.hidden; $("#btn-api").setAttribute("aria-expanded",String(!box.hidden));
   const base=location.origin+"/v1"; $("#api-base").textContent=base;
-  $("#api-snippet").textContent=`from openai import OpenAI\nclient = OpenAI(base_url="${base}", api_key="YOUR_GATEWAY_TOKEN")\nr = client.chat.completions.create(model="mcubed",\n    messages=[{"role": "user", "content": "Hello"}])\nprint(r.choices[0].message.content)\n\ncurl ${base}/chat/completions -H "Authorization: Bearer YOUR_GATEWAY_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"mcubed","messages":[{"role":"user","content":"Hello"}]}'`; });
+  $("#api-snippet").textContent=`from openai import OpenAI\nclient = OpenAI(base_url="${base}", api_key="YOUR_GATEWAY_TOKEN")\nr = client.chat.completions.create(model="mhexeract",\n    messages=[{"role": "user", "content": "Hello"}])\nprint(r.choices[0].message.content)\n\ncurl ${base}/chat/completions -H "Authorization: Bearer YOUR_GATEWAY_TOKEN" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"mhexeract","messages":[{"role":"user","content":"Hello"}]}'`; });
 document.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>navigator.clipboard?.writeText($("#"+b.dataset.copy).textContent).then(()=>toast("Copied"),()=>toast("Copy failed"))));
 renderChat();
 
@@ -1402,7 +1402,7 @@ $("#tb-close").addEventListener("click",async()=>{
   let android=!!(TB&&TB.android);
   try{ const r=await api("/api/toolbox",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"shutdown"})}); if(r&&r.android) android=true; }catch(e){}
   $("#off-screen").hidden=false;
-  if(android) setTimeout(()=>{ location.href="mcubed://close-app" },350);
+  if(android) setTimeout(()=>{ location.href="mhexeract://close-app" },350);
 });
 $("#tb-compact").addEventListener("click",async()=>{
   try{ await api("/api/compact",{method:"POST"}); toast("Storage compacted"); $("#tb-msg").textContent="Storage compacted." }catch(e){ toast(e.message) }

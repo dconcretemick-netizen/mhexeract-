@@ -379,7 +379,7 @@ document.getElementById("mute").onclick=()=>{ muted=!muted; localStorage.setItem
 document.getElementById("mute").style.opacity=muted?.4:1;
 document.getElementById("autorun").onchange=e=>{ autorun=e.target.checked; localStorage.setItem("pip.autorun",autorun?"1":"0") };
 document.addEventListener("visibilitychange",()=>{ if(document.hidden&&state==="play") togglePause() });
-addEventListener("message",e=>{ if(e.data==="mcubed:pause"&&state==="play") togglePause() });
+addEventListener("message",e=>{ if(e.data==="mhexeract:pause"&&state==="play") togglePause() });
 
 layout(); startLevel(pick,false); state="menu"; showMenu("Pip's Leap","Run, jump and stomp through three worlds. Bonk gem blocks for gems and berries."); requestAnimationFrame(loop);
 window.__pip={state:()=>({state,lv:lvIndex,x:P.x,y:P.y,vx:P.vx,vy:P.vy,big:P.big,ground:P.ground,lives,score,gems,VW,ents:ents.filter(e=>e.alive&&!e.dead).length}),

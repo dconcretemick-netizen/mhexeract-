@@ -136,7 +136,7 @@ MHexeract looks for more AI every hour while the dashboard or app runs, and on d
 
 - **Cloud providers:** 21 OpenAI-compatible services (only the free ones are used in free-only mode), including Google Gemini, Groq, Cerebras, Mistral, Hugging Face, NVIDIA NIM, SambaNova, xAI, Together, Fireworks, DeepInfra, Moonshot, Qwen, Z.ai and MiniMax. Add a key in AI keys (Android) or `.env` and the next scan adds that provider's chat models. Several have free tiers. With OpenRouter, free models are added too.
 - **This device:** Ollama, LM Studio, vLLM, Jan, KoboldCpp, GPT4All and llama.cpp servers on their usual ports are used automatically.
-- **Local network:** model servers elsewhere on your Wi-Fi are listed but not used until you tap Trust. Set `MCUBED_LAN_SCAN=0` to skip the network scan, `MCUBED_NODE_SCAN=0` to turn scanning off, or `MCUBED_NODES` to add your own servers.
+- **Local network:** model servers elsewhere on your Wi-Fi are listed but not used until you tap Trust. Set `MHEXERACT_LAN_SCAN=0` to skip the network scan, `MHEXERACT_NODE_SCAN=0` to turn scanning off, or `MHEXERACT_NODES` to add your own servers.
 
 Nodes join the same learning router as every other model, so the good ones earn more traffic. Results are kept in `nodes.json` next to the database.
 
@@ -151,7 +151,7 @@ r = client.chat.completions.create(model="mcubed", messages=[{"role": "user", "c
 print(r.choices[0].message.content)
 ```
 
-- `mcubed` (or `mcubed-auto`) lets the router pick; `mcubed-efficient` prefers light models; `mcubed-quality` prefers the best.
+- `mcubed` (or `mhexeract-auto`) lets the router pick; `mhexeract-efficient` prefers light models; `mhexeract-quality` prefers the best.
 - Any alias from `GET /v1/models` pins that exact model.
 - `stream: true` returns server-sent events. Responses include an extra `mcubed` field showing which model answered.
 - The key is the gateway token (`--token` / `GATEWAY_GUI_TOKEN`), sent as `Authorization: Bearer ...`.
@@ -187,7 +187,7 @@ The News tab (`GET /api/news`, CLI `news`) reads RSS feeds from a balanced set o
 The Update tab (CLI `update`) compares your version with the newest commit on GitHub and lists what changed.
 
 - **Git checkout:** runs `git pull --ff-only` and restarts.
-- **Plain copy (zip or Termux):** downloads each program file, checks it against GitHub's hash, confirms the new `gateway.py` compiles, backs up the old files to `.mcubed_backup/`, then restarts. If you edited `models.json` or `news.json`, your copy is kept and the new one is saved as `*.new`. Roll back restores the last backup.
+- **Plain copy (zip or Termux):** downloads each program file, checks it against GitHub's hash, confirms the new `gateway.py` compiles, backs up the old files to `.mhexeract_backup/`, then restarts. If you edited `models.json` or `news.json`, your copy is kept and the new one is saved as `*.new`. Roll back restores the last backup.
 - **Android app:** every push to `main` refreshes the "MHexeract install" release (tag `latest`). The app downloads that APK (no GitHub token needed) and opens Android's installer. All builds are signed with one permanent key stored in GitHub Actions secrets, so each APK installs over the last one. APKs built before this change used a temporary key: uninstall that version once before installing the new one.
 
 ## How a request flows

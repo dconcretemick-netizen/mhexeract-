@@ -167,7 +167,7 @@ function setPause(v){ if(over||!started) return; paused=v; $("pause").textConten
 $("ov-b").onclick=()=>{ $("over").classList.remove("show"); if(over||!started&&!grid){ reset() } else if(!started){} started=true; paused=false; $("pause").textContent="II"; last=0 };
 $("pause").onclick=()=>setPause(!paused);
 document.addEventListener("visibilitychange",()=>{ if(document.hidden&&started&&!over&&!paused) setPause(true) });
-addEventListener("message",e=>{ if(e.data==="mcubed:pause"&&started&&!over&&!paused) setPause(true) });  // dashboard tab switched away
+addEventListener("message",e=>{ if(e.data==="mhexeract:pause"&&started&&!over&&!paused) setPause(true) });  // dashboard tab switched away
 // keyboard
 const KEYS={ArrowLeft:()=>move(-1,0),ArrowRight:()=>move(1,0),ArrowDown:softDrop,ArrowUp:()=>rotate(1),x:()=>rotate(1),X:()=>rotate(1),
   z:()=>rotate(-1),Z:()=>rotate(-1)," ":hardDrop,c:doHold,C:doHold,Shift:doHold,p:()=>setPause(!paused),P:()=>setPause(!paused),Escape:()=>setPause(!paused)};

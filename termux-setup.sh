@@ -1,5 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# MCUBED gateway on Android (Termux).
+# MHexeract gateway on Android (Termux).
 # Lite mode uses only the Python standard library and routes every model through OpenRouter,
 # so nothing native has to compile on the phone. Full LiteLLM mode is optional (see --full).
 set -euo pipefail

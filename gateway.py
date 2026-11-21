@@ -57,7 +57,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-log = logging.getLogger("mcubed.gateway")
+log = logging.getLogger("mhexeract.gateway")
 
 # --------------------------------------------------------------------------- #
 # LiteLLM, or a stdlib-only shim for constrained devices (Android / Termux)
@@ -1088,7 +1088,7 @@ class Gateway:
     # -- availability ------------------------------------------------------- #
     def allow_paid(self) -> bool:
         """MHexeract is free by default: paid AI is used only if the owner turns it on."""
-        env = os.getenv("MCUBED_ALLOW_PAID")
+        env = os.getenv("MHEXERACT_ALLOW_PAID")
         if env in ("0", "1"):
             return env == "1"
         return bool(self.store.get_policy("allow_paid", not (self.defaults.get("cost") or {}).get("free_only", True)))
@@ -1905,8 +1905,8 @@ def nodes_config(gw: Optional["Gateway"] = None) -> dict:
         lan = store.get_policy("bg_lan_scan", None)
         if lan is not None:
             cfg["lan_scan"] = bool(lan)
-    if os.getenv("MCUBED_LAN_SCAN") is not None:
-        cfg["lan_scan"] = os.getenv("MCUBED_LAN_SCAN") == "1"
+    if os.getenv("MHEXERACT_LAN_SCAN") is not None:
+        cfg["lan_scan"] = os.getenv("MHEXERACT_LAN_SCAN") == "1"
     return cfg
 
 
@@ -1924,7 +1924,7 @@ def scan_nodes(path: str, gw: Optional["Gateway"] = None) -> dict:
     cfg = nodes_config(gw)
     prev = load_nodes(path)
     trusted = set(prev.get("trusted", []))
-    extra = [u.strip().rstrip("/") for u in os.getenv("MCUBED_NODES", "").split(",") if u.strip()]
+    extra = [u.strip().rstrip("/") for u in os.getenv("MHEXERACT_NODES", "").split(",") if u.strip()]
     dead = set(load_key_health().get("dead_nodes", []))
     live_nodes = [n for n in CLOUD_NODES if n[0] not in dead]
     with ThreadPoolExecutor(max_workers=24) as ex:
@@ -1934,7 +1934,7 @@ def scan_nodes(path: str, gw: Optional["Gateway"] = None) -> dict:
         if cfg.get("lan_scan"):
             hp = [h.split(":") for h in _lan_hosts()]
             lan = [r for r in ex.map(lambda x: _probe_local(x[0], int(x[1]), ""), hp) if r]
-    for url in extra:  # nodes you list yourself in MCUBED_NODES are trusted
+    for url in extra:  # nodes you list yourself in MHEXERACT_NODES are trusted
         from urllib.parse import urlparse
         u = urlparse(url if "://" in url else "http://" + url)
         r = _probe_local(u.hostname or "", u.port or 80, "", 3)
@@ -1999,7 +1999,7 @@ ICON_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect w
             'stroke-width="5" stroke-linejoin="round"/></svg>')
 # network-first service worker: works offline with the last report, never serves stale data when online
 SERVICE_WORKER = """
-const C='mcubed-v5';
+const C='mhexeract-v6';
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(['/','/game.html','/solitaire.html','/tetris.html','/platformer.html','/oregon.html','/blackjack.html','/manifest.webmanifest','/icon.svg'])))});
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;
@@ -2189,9 +2189,9 @@ def _scheduled_improver(gw: "Gateway", lock: threading.Lock, poll_s: float = 300
 
 
 def run_node_scan(gw: "Gateway", lock: threading.Lock, force: bool = False) -> Optional[dict]:
-    """Scan for AI nodes when due (defaults.nodes.scan_every_minutes; 0 or MCUBED_NODE_SCAN=0 disables)."""
+    """Scan for AI nodes when due (defaults.nodes.scan_every_minutes; 0 or MHEXERACT_NODE_SCAN=0 disables)."""
     minutes = float(nodes_config(gw).get("scan_every_minutes", 60))
-    if not force and (minutes <= 0 or os.getenv("MCUBED_NODE_SCAN", "1") == "0" or gw.mock):
+    if not force and (minutes <= 0 or os.getenv("MHEXERACT_NODE_SCAN", "1") == "0" or gw.mock):
         return None
     last = float(gw.store.get_policy("last_node_scan_ts", 0) or 0)
     keys_now = ",".join(k for k in NODE_KEY_NAMES if node_key(k))  # names only, never values
@@ -2370,8 +2370,8 @@ def fetch_page(url: str, max_bytes: int = 3_000_000) -> dict:
 # --------------------------------------------------------------------------- #
 # Self-update: install the newest MHexeract from GitHub (verified, backed up, reversible)
 # --------------------------------------------------------------------------- #
-UPDATE_REPO = os.getenv("MCUBED_REPO", "dconcretemick-netizen/MCUBED")
-UPDATE_BRANCH = os.getenv("MCUBED_BRANCH", "main")
+UPDATE_REPO = os.getenv("MHEXERACT_REPO", "dconcretemick-netizen/MCUBED")
+UPDATE_BRANCH = os.getenv("MHEXERACT_BRANCH", "main")
 UPDATE_EXT = (".py", ".html", ".json", ".sh", ".md", ".txt")
 UPDATE_SKIP = {"repos.json", "build_info.json", "package.json", "package-lock.json", "keys.json"}  # data, not program files
 UPDATE_CONFIG = {"models.json", "news.json"}  # your edits here are kept (the new version is saved as *.new)
@@ -2379,13 +2379,13 @@ _update_cache: dict = {}
 
 
 def _is_android() -> bool:
-    return os.getenv("MCUBED_ANDROID") == "1"
+    return os.getenv("MHEXERACT_ANDROID") == "1"
 
 
 def _channel() -> str:
     """Where this copy came from: "direct" (GitHub/sideload, self-updates)
     or "play" (Google Play, which handles updates and forbids self-install)."""
-    return "play" if os.getenv("MCUBED_CHANNEL") == "play" else "direct"
+    return "play" if os.getenv("MHEXERACT_CHANNEL") == "play" else "direct"
 
 
 def _gh_api(path: str, raw: bool = False, timeout: float = 30) -> Any:
@@ -2423,7 +2423,7 @@ def _git_blob_sha(data: bytes) -> str:
 
 
 def _update_manifest_path() -> Path:
-    return HERE / ".mcubed_update.json"
+    return HERE / ".mhexeract_update.json"
 
 
 def current_version() -> dict:
@@ -2497,7 +2497,7 @@ def check_update(force: bool = False) -> dict:
 
 
 def _update_backups() -> list[Path]:
-    d = HERE / ".mcubed_backup"
+    d = HERE / ".mhexeract_backup"
     return sorted((p for p in d.iterdir() if p.is_dir()), reverse=True) if d.exists() else []
 
 
@@ -2577,7 +2577,7 @@ def _gh_file(path: str, sha: str) -> bytes:
     """One file at a commit. Without a token, use raw.githubusercontent.com (no API rate limit for public repos)."""
     import shutil
     import urllib.request
-    if _github_token() or not os.getenv("MCUBED_RAW_DOWNLOADS", "1") == "1" and shutil.which("gh"):
+    if _github_token() or not os.getenv("MHEXERACT_RAW_DOWNLOADS", "1") == "1" and shutil.which("gh"):
         return _gh_api(f"repos/{UPDATE_REPO}/contents/{path}?ref={sha}", raw=True, timeout=60)
     url = f"https://raw.githubusercontent.com/{UPDATE_REPO}/{sha}/{path}"
     try:
@@ -2622,7 +2622,7 @@ def apply_update() -> dict:
         if name.endswith(".json"):
             json.loads(data)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    bdir = HERE / ".mcubed_backup" / stamp
+    bdir = HERE / ".mhexeract_backup" / stamp
     bdir.mkdir(parents=True, exist_ok=True)
     changed, kept, same = [], [], []
     for name, data in staged.items():
@@ -2689,7 +2689,7 @@ def download_apk() -> dict:
     headers = {"Accept": "application/octet-stream", "User-Agent": "MHexeract"}
     if _github_token():
         headers["Authorization"] = f"Bearer {_github_token()}"
-    out = Path(os.getenv("MCUBED_DATA", str(HERE))) / "update.apk"
+    out = Path(os.getenv("MHEXERACT_DATA", str(HERE))) / "update.apk"
     tmp = out.with_suffix(".part")
     with urllib.request.urlopen(urllib.request.Request(asset["url"], headers=headers), timeout=60) as r, open(tmp, "wb") as f:
         shutil_copy = __import__("shutil").copyfileobj
@@ -2734,7 +2734,7 @@ def restart_process(delay: float = 0.8) -> None:
     def go() -> None:
         time.sleep(delay)
         os.execv(sys.executable, [sys.executable] + sys.argv)
-    threading.Thread(target=go, name="mcubed-restart", daemon=True).start()
+    threading.Thread(target=go, name="mhexeract-restart", daemon=True).start()
 
 
 # --------------------------------------------------------------------------- #
@@ -3025,21 +3025,21 @@ def wine_run(exe: str, args: Optional[list[str]] = None, wait: bool = False) -> 
 # --------------------------------------------------------------------------- #
 OPENAI_PASSTHROUGH = ("temperature", "top_p", "max_tokens", "max_completion_tokens", "stop", "seed",
                       "response_format", "presence_penalty", "frequency_penalty")
-MCUBED_MODELS = {"mcubed": "balanced", "mcubed-auto": "balanced", "mcubed-efficient": "efficient",
-                 "mcubed-quality": "quality"}
+MHEXERACT_MODELS = {"mhexeract": "balanced", "mhexeract-auto": "balanced", "mhexeract-efficient": "efficient",
+                 "mhexeract-quality": "quality"}
 
 
 def openai_models(gw: "Gateway") -> dict:
     now = int(time.time())
-    ids = list(MCUBED_MODELS) + [a for a, s in gw.models.items()
+    ids = list(MHEXERACT_MODELS) + [a for a, s in gw.models.items()
                                  if any(gw._route_available(s, r) for r in s.routes)]
-    return {"object": "list", "data": [{"id": i, "object": "model", "created": now, "owned_by": "mcubed"} for i in ids]}
+    return {"object": "list", "data": [{"id": i, "object": "model", "created": now, "owned_by": "mhexeract"} for i in ids]}
 
 
 def openai_chat(gw: "Gateway", body: dict) -> dict:
     """Serve an OpenAI /v1/chat/completions request through the gateway router.
 
-    model "mcubed" (or mcubed-efficient / mcubed-quality) lets the router choose; any pool alias pins that model.
+    model "mhexeract" (or mhexeract-efficient / mhexeract-quality) lets the router choose; any pool alias pins that model.
     """
     msgs = body.get("messages")
     if not isinstance(msgs, list) or not msgs:
@@ -3053,11 +3053,11 @@ def openai_chat(gw: "Gateway", body: dict) -> dict:
             content = "\n".join(str(p.get("text", "")) for p in content if isinstance(p, dict) and p.get("type") == "text")
         clean.append({"role": "system" if m["role"] == "developer" else ("user" if m["role"] == "tool" else m["role"]),
                       "content": "" if content is None else str(content)})
-    model = str(body.get("model") or "mcubed")
-    strategy, pinned = MCUBED_MODELS.get(model), None
+    model = str(body.get("model") or "mhexeract")
+    strategy, pinned = MHEXERACT_MODELS.get(model), None
     if strategy is None:
         if model not in gw.models:
-            raise KeyError(f"unknown model '{model}'. Use 'mcubed' or one of GET /v1/models")
+            raise KeyError(f"unknown model '{model}'. Use 'mhexeract' or one of GET /v1/models")
         pinned = [model]
     kw = {k: body[k] for k in OPENAI_PASSTHROUGH if body.get(k) is not None}
     if "max_completion_tokens" in kw:
@@ -3065,12 +3065,12 @@ def openai_chat(gw: "Gateway", body: dict) -> dict:
     r = gw.chat(clean, strategy=strategy, models=pinned, use_cache=not body.get("temperature"), **kw)
     return {
         "id": f"chatcmpl-{r.request_id}", "object": "chat.completion", "created": int(time.time()),
-        "model": model, "system_fingerprint": f"mcubed:{r.model_alias}",
+        "model": model, "system_fingerprint": f"mhexeract:{r.model_alias}",
         "choices": [{"index": 0, "message": {"role": "assistant", "content": r.text},
                      "finish_reason": r.finish_reason or "stop"}],
         "usage": {"prompt_tokens": r.prompt_tokens, "completion_tokens": r.completion_tokens,
                   "total_tokens": r.prompt_tokens + r.completion_tokens},
-        "mcubed": {k: v for k, v in r.summary().items() if k in (
+        "mhexeract": {k: v for k, v in r.summary().items() if k in (
             "request_id", "model_alias", "model", "via", "task_type", "tier_policy", "latency_ms", "attempts", "cached")},
     }
 
@@ -3101,7 +3101,7 @@ KEY_NAMES = [env for env, *_ in KEY_SLOTS]
 
 def keys_path() -> Path:
     """Where saved keys live: the app's private data dir on Android, the gateway folder elsewhere."""
-    return Path(os.getenv("MCUBED_DATA", str(HERE))) / "keys.json"
+    return Path(os.getenv("MHEXERACT_DATA", str(HERE))) / "keys.json"
 
 
 def load_saved_keys() -> int:
@@ -3185,7 +3185,7 @@ GARDENER_MAX_FAILS = 3  # consecutive failed checks before a key/provider is cle
 
 def key_health_path() -> Path:
     """Where the gardener keeps key/provider health: next to keys.json."""
-    return Path(os.getenv("MCUBED_DATA", str(HERE))) / "key_health.json"
+    return Path(os.getenv("MHEXERACT_DATA", str(HERE))) / "key_health.json"
 
 
 def load_key_health() -> dict:
@@ -3456,7 +3456,7 @@ _GUI_SERVER = None  # the running ThreadingHTTPServer, so the Toolbox can shut i
 
 def shutdown_gateway(delay: float = 0.6) -> None:
     """Stop the GUI server for good. On desktop the process exits too; on Android
-    the dashboard follows up with mcubed://close-app and the app closes itself
+    the dashboard follows up with mhexeract://close-app and the app closes itself
     (stopping the keep-alive service and the process), so nothing is left running."""
     def go() -> None:
         time.sleep(delay)  # let the HTTP reply reach the dashboard first
@@ -3472,7 +3472,7 @@ def shutdown_gateway(delay: float = 0.6) -> None:
                 pass
         if not _is_android():
             os._exit(0)
-    threading.Thread(target=go, name="mcubed-shutdown", daemon=True).start()
+    threading.Thread(target=go, name="mhexeract-shutdown", daemon=True).start()
 
 
 # --------------------------------------------------------------------------- #
@@ -3483,11 +3483,11 @@ def shutdown_gateway(delay: float = 0.6) -> None:
 # finger-sized touch targets, no focus zoom on form fields, no tap flash,
 # no overscroll chaining, and compact spacing on narrow screens.
 # --------------------------------------------------------------------------- #
-UI_POLISH_MARKER = "mcubed-ui-polish"
-UI_POLISH_VERSION = "mcubed-ui-polish v2"
+UI_POLISH_MARKER = "mhexeract-ui-polish"
+UI_POLISH_VERSION = "mhexeract-ui-polish v2"
 UI_POLISH_HTML = (
-    "<style data-mcubed-ui-polish>\n"
-    "/* mcubed-ui-polish v2: automated Android UI improvements, injected by the gateway */\n"
+    "<style data-mhexeract-ui-polish>\n"
+    "/* mhexeract-ui-polish v2: automated Android UI improvements, injected by the gateway */\n"
     "html{-webkit-tap-highlight-color:transparent}\n"
     "html,body{overflow-x:hidden;overflow-x:clip}\n"
     "body{overscroll-behavior-y:none}\n"
@@ -3523,10 +3523,10 @@ def polish_html(body: bytes) -> bytes:
         text = text.replace('initial-scale=1"', 'initial-scale=1, viewport-fit=cover"', 1)
     if 'name="theme-color"' not in text:
         add += '<meta name="theme-color" content="#0f1417">\n'
-    if UI_POLISH_MARKER not in text:
+    if UI_POLISH_MARKER not in text and "mcubed-ui-polish" not in text:
         add += UI_POLISH_HTML + "\n"
     elif UI_POLISH_VERSION not in text:  # stale built-in polish: swap in the current one
-        text = re.sub(r"<style data-mcubed-ui-polish>.*?</style>", UI_POLISH_HTML, text, count=1, flags=re.S)
+        text = re.sub(r"<style data-(?:mcubed|mhexeract)-ui-polish>.*?</style>", UI_POLISH_HTML, text, count=1, flags=re.S)
     if add:
         text = text.replace("</head>", add + "</head>", 1)
     return text.encode("utf-8")
@@ -3829,7 +3829,7 @@ def dtc_bundled_path() -> Path:
 
 def dtc_live_path() -> Path:
     """Where a downloaded database lives: the same data dir as the saved keys."""
-    return Path(os.getenv("MCUBED_DATA", str(HERE))) / "dtc_codes.json"
+    return Path(os.getenv("MHEXERACT_DATA", str(HERE))) / "dtc_codes.json"
 
 
 def _read_dtc_json(path: Path) -> dict:
@@ -4498,7 +4498,7 @@ def serve_gui(gw: "Gateway", host: str = "127.0.0.1", port: int = 8765, token: O
             auth = self.headers.get("Authorization") or ""
             bearer = auth[7:].strip() if auth.lower().startswith("bearer ") else ""
             got = self.headers.get("X-Gateway-Token") or bearer or (q.get("token") or [""])[0] or \
-                (self.headers.get("Cookie") or "").partition("mcubed_token=")[2].split(";")[0]
+                (self.headers.get("Cookie") or "").partition("mhexeract_token=")[2].split(";")[0]
             import hmac
             return bool(got) and hmac.compare_digest(got, token)
 
@@ -4557,7 +4557,7 @@ def serve_gui(gw: "Gateway", host: str = "127.0.0.1", port: int = 8765, token: O
                 body = polish_html((HERE / "dashboard.html").read_bytes())
                 self.send_response(200)
                 if token:
-                    self.send_header("Set-Cookie", f"mcubed_token={token}; Path=/; SameSite=Strict; HttpOnly")
+                    self.send_header("Set-Cookie", f"mhexeract_token={token}; Path=/; SameSite=Strict; HttpOnly")
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
@@ -4694,7 +4694,7 @@ def serve_gui(gw: "Gateway", host: str = "127.0.0.1", port: int = 8765, token: O
                     self._send(200, toolbox_status(gw))
                     restart_process()
                     return
-                if action == "shutdown":  # full stop: server down; Android closes the app via mcubed://close-app
+                if action == "shutdown":  # full stop: server down; Android closes the app via mhexeract://close-app
                     self._send(200, {**toolbox_status(gw), "shutdown": True})
                     shutdown_gateway()
                     return
@@ -4797,7 +4797,7 @@ def serve_gui(gw: "Gateway", host: str = "127.0.0.1", port: int = 8765, token: O
 
     srv = ThreadingHTTPServer((host, port), H)
     _GUI_SERVER = srv
-    threading.Thread(target=_scheduled_improver, args=(gw, lock), name="mcubed-improver", daemon=True).start()
+    threading.Thread(target=_scheduled_improver, args=(gw, lock), name="mhexeract-improver", daemon=True).start()
     shown = "localhost" if host in ("127.0.0.1", "0.0.0.0") else host
     print(f"MHexeract GUI on http://{shown}:{port}/" + (f"?token={token}" if token else ""))
     if host == "0.0.0.0":

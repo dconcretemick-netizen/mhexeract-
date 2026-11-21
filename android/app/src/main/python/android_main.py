@@ -60,9 +60,9 @@ def start(data_dir: str, keys_json: str = "{}", channel: str = "direct") -> str:
         set_keys(keys_json)
         return _state["url"]
     os.environ["GATEWAY_LITE"] = "1"
-    os.environ["MCUBED_ANDROID"] = "1"  # Update tab installs a new APK instead of replacing files
-    os.environ["MCUBED_CHANNEL"] = "play" if channel == "play" else "direct"  # Play builds update via Google Play
-    os.environ["MCUBED_DATA"] = data_dir  # update.apk lands here (files/gateway), where MainActivity reads it
+    os.environ["MHEXERACT_ANDROID"] = "1"  # Update tab installs a new APK instead of replacing files
+    os.environ["MHEXERACT_CHANNEL"] = "play" if channel == "play" else "direct"  # Play builds update via Google Play
+    os.environ["MHEXERACT_DATA"] = data_dir  # update.apk lands here (files/gateway), where MainActivity reads it
     has_key = _apply_keys(keys_json)
     import gateway  # imported after GATEWAY_LITE is set
 
@@ -76,7 +76,7 @@ def start(data_dir: str, keys_json: str = "{}", channel: str = "direct") -> str:
     probe.close()
     token = secrets.token_urlsafe(24)
     threading.Thread(target=gateway.serve_gui, args=(gw, "127.0.0.1", port, token),
-                     name="mcubed-gui", daemon=True).start()
+                     name="mhexeract-gui", daemon=True).start()
 
     deadline = time.time() + 15
     while time.time() < deadline:
