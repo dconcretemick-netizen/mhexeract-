@@ -1729,7 +1729,10 @@ CLOUD_NODES = [
 ]
 # Providers whose API keys work on a no-card free plan, so they cannot charge anything. The OpenRouter node only
 # ever adds ":free" models. Everything else (and every paid OpenRouter route) is off unless paid AI is allowed.
-FREE_NODE_IDS = {"openrouter", "gemini", "groq", "mistral", "sambanova", "nvidia", "huggingface", "cohere", "pollinations"}
+# Meta Muse AI is in this set while Meta offers Muse free at dev.meta.ai (Mick's no-cost directive, 2026-11-21):
+# it is the offered first key. If Meta starts charging, the gardener's rejected-key checks flag it — remove
+# "meta" here and it goes back to a paid node everywhere at once.
+FREE_NODE_IDS = {"openrouter", "gemini", "groq", "mistral", "sambanova", "nvidia", "huggingface", "cohere", "pollinations", "meta"}
 NODE_KEY_NAMES = sorted({c[3] for c in CLOUD_NODES})
 # local model servers: port -> software that usually listens there
 LOCAL_PORTS = {11434: "Ollama", 1234: "LM Studio", 8080: "llama.cpp / LocalAI", 8000: "vLLM", 1337: "Jan",
@@ -3096,6 +3099,8 @@ KEY_SLOTS = [(env, name, signup, nid in FREE_NODE_IDS)
              for nid, name, _base, env, signup, _path in CLOUD_NODES if env]
 KEY_SLOTS += [("ANTHROPIC_API_KEY", "Anthropic Claude", "https://console.anthropic.com/settings/keys", False),
               ("GITHUB_TOKEN", "GitHub token (optional: repositories)", "https://github.com/settings/tokens", True)]
+# Meta Muse leads the keys list: while Muse is free it is the offered default first step.
+KEY_SLOTS.sort(key=lambda s: s[0] != "MODEL_API_KEY")
 KEY_NAMES = [env for env, *_ in KEY_SLOTS]
 
 

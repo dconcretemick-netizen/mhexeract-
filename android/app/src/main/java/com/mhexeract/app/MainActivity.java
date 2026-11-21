@@ -46,6 +46,7 @@ public class MainActivity extends Activity {
     private static final String KEY_KEEP_BG = "keep_background";
     /** Provider key slots: environment variable name and label shown in the dialog. */
     private static final String[][] KEYS = {
+            {"MODEL_API_KEY", "Meta Muse AI (free — start here)"},
             {"GEMINI_API_KEY", "Google Gemini (free)"},
             {"GROQ_API_KEY", "Groq (free)"},
             {"OPENROUTER_API_KEY", "OpenRouter (free models only unless paid AI is on)"},
@@ -68,7 +69,6 @@ public class MainActivity extends Activity {
             {"DASHSCOPE_API_KEY", "Alibaba Qwen (paid)"},
             {"ZAI_API_KEY", "Z.ai GLM (paid)"},
             {"MINIMAX_API_KEY", "MiniMax (paid)"},
-            {"MODEL_API_KEY", "Meta Muse AI (paid)"},
     };
     private static final int MENU_KEY = 1, MENU_RELOAD = 2, MENU_TOOLBOX = 3, MENU_CLOSE = 4;
 

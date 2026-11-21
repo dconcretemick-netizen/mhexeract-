@@ -649,7 +649,7 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
     </div>
 
     <div class="card" style="margin-top:var(--gap)"><h2>AI keys <span class="chip" id="keys-chip">checking</span></h2>
-      <p class="news-note">Paste a key, then tap <b>Save keys</b>. Keys are stored only on this device, take effect right away — no restart needed — and are never shown again (only the last 4 characters). Leave a field blank to keep the key already saved.</p>
+      <p class="news-note"><b>Start here:</b> add a free Meta Muse key first — while Muse stays free, it is the recommended first step out of demo mode. Paste a key, then tap <b>Save keys</b>. Keys are stored only on this device, take effect right away — no restart needed — and are never shown again (only the last 4 characters). Leave a field blank to keep the key already saved.</p>
       <div id="keys-list"><div class="skel"></div></div>
       <div class="row" style="margin-top:14px">
         <button class="btn primary" id="btn-save-keys" style="flex:1">Save keys</button>
@@ -1287,6 +1287,7 @@ function renderKeys(){
   $("#keys-chip").textContent = d.saved ? `${d.saved} saved` : "none saved";
   $("#keys-list").innerHTML = d.keys.map(k=>`<div class="key-row">
     <div class="k-head"><b>${esc(k.name)}</b><span class="tag ${k.free?"free":""}">${k.free?"free":"paid"}</span>
+      ${k.env==="MODEL_API_KEY"&&!k.set?'<span class="chip kept">Start here</span>':""}
       <span class="spacer"></span>
       ${k.set?`<span class="chip kept">Saved ${esc(k.hint)}</span><button class="btn sm" data-remove-key="${esc(k.env)}">Remove</button>`:`<span class="chip">Not set</span>`}
       ${k.signup?`<a class="btn sm" style="text-decoration:none;color:inherit" href="${esc(k.signup)}" target="_blank" rel="noopener">Get key</a>`:""}
