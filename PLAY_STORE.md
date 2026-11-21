@@ -19,8 +19,9 @@ Everything prepared for a Play Store listing, and the steps only Mick can do
   asset, unchanged names) **and** a Play bundle artifact named
   `MHexeract-play-aab` (an `.aab` file — Play accepts bundles, not raw APKs).
 - The app already targets **API 35**, which meets Play's current target-API
-  requirement. The applicationId stays `com.mcubed.app` (Play listings are tied
-  to it permanently, and existing installs keep updating).
+  requirement. The applicationId is `com.mhexeract.app` (renamed before the
+  first listing — Play ties a listing to its applicationId permanently, so
+  this is the last free chance to change it).
 
 Signing note: Play re-signs apps with Google's own key (Play App Signing). Our
 existing CI key becomes the *upload* key. Because the final signature differs,

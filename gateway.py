@@ -4053,7 +4053,7 @@ class _AndroidBtTransport:
     def open(self):
         try:
             from java import jclass
-            self.bridge = jclass("com.mcubed.app.ObdBridge")
+            self.bridge = jclass("com.mhexeract.app.ObdBridge")
         except Exception:
             raise ObdError("Bluetooth bridge is not available in this app build") from None
         if not self.bridge.connect(self.address):
@@ -4450,7 +4450,7 @@ def obd_bluetooth() -> dict:
     if _is_android():
         try:
             from java import jclass
-            bridge = jclass("com.mcubed.app.ObdBridge")
+            bridge = jclass("com.mhexeract.app.ObdBridge")
             devices = json.loads(str(bridge.devices()))
             return {"available": bool(bridge.available()), "devices": devices}
         except Exception:  # noqa: BLE001

@@ -8,7 +8,7 @@ Official guide: https://developer.android.com/developer-verification/guides/andr
 
 | Field | Value |
 |---|---|
-| Package name | `com.mcubed.app` |
+| Package name | `com.mhexeract.app` |
 | Friendly name | `MHexeract` |
 | SHA-256 certificate fingerprint | `53:B5:7E:B8:25:1C:65:28:06:1E:05:76:6F:42:4C:41:EE:1E:94:80:1A:76:A9:F9:44:F7:C1:A1:9D:D9:CC:CC` |
 | Certificate subject | `CN=MHexeract, O=dconcretemick-netizen` |

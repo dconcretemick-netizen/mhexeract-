@@ -13,11 +13,11 @@ copy {
 }
 
 android {
-    namespace = "com.mcubed.app"
+    namespace = "com.mhexeract.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.mcubed.app"
+        applicationId = "com.mhexeract.app"
         minSdk = 26
         targetSdk = 35
         versionCode = (System.getenv("MCUBED_VERSION_CODE") ?: "1").toInt()
