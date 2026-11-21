@@ -58,7 +58,23 @@ jobs:
 
       - name: Rename APK
         run: cp android/app/build/outputs/apk/direct/release/app-release.apk MCUBED-${{ github.run_number }}.apk
+      - name: Build Play bundle (AAB)
+        if: github.event_name != 'pull_request'
+        working-directory: android
+        env:
+          MCUBED_KEYSTORE_PASSWORD: ${{ secrets.MCUBED_KEYSTORE_PASSWORD }}
+          MCUBED_KEY_ALIAS: ${{ secrets.MCUBED_KEY_ALIAS }}
+          MCUBED_VERSION_CODE: ${{ github.run_number }}
+          MCUBED_VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('0.1.{0}', github.run_number) }}
+        run: gradle --no-daemon bundlePlayRelease
 
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: github.event_name != 'pull_request'
+        with:
+          name: MHexeract-play-aab
+          path: android/app/build/outputs/bundle/playRelease/app-play-release.aab
+          retention-days: 30
+          
       - name: Verify the APK is signed with the MCUBED key
         if: github.event_name != 'pull_request'
         run: |
