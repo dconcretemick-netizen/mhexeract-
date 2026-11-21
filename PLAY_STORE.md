@@ -144,3 +144,27 @@ asked; it can add a "Simulated Gambling" descriptor.
   adapter; declare that purpose if the permissions form asks.
 - **No** `REQUEST_INSTALL_PACKAGES`, **no** battery-exemption request in the
   Play build (removed by the flavor overlay) — nothing to declare there.
+
+## Installing the direct APK without virus warnings
+
+The "harmful app" / extra-warning screens on install come from Google Play
+Protect on the phone, not from the app — every APK installed outside the Play
+Store gets them, and an app cannot switch them off. Two legitimate fixes:
+
+1. **Android Developer Verification** (for the direct APK): in the Android
+   Developer Console, verify your identity (government ID; one-time $25 for a
+   full account — the same fee as Play — or use the free limited-distribution
+   account, up to 20 devices, no ID or fee) and register the package
+   `com.mhexeract.app` with the release signing certificate below. Registered
+   package + verified developer = the normal install experience, no scare
+   screens for this certificate — and it future-proofs 2027, when unverified
+   sideloads get a 24-hour "advanced flow" wait worldwide.
+   - Release certificate SHA-256 (public — it ships inside every APK):
+     `53b57eb8251c6528061e05766f424c41ee1e94801a76a9f944f7c1a19dd9cccc`
+   - Never rotate or replace the release key: registration, updates, and the
+     gateway's own signature check all pin this certificate.
+2. **The Play listing itself**: apps installed from Google Play never show
+   sideload warnings, and Play apps were registered automatically.
+
+Until then, "More details → Install anyway" on the warning screen is the
+normal path for your own phone.
