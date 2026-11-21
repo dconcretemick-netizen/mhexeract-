@@ -689,6 +689,12 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
       <div class="row" style="margin-top:10px"><button class="btn" id="tb-run-strive">Strive now</button></div>
     </div>
 
+    <div class="card" style="margin-top:var(--gap)"><h2>Picker — fresh ideas</h2>
+      <p class="news-note">The farmer farms and the cultivator nurtures; the picker harvests what has grown and sends it on as new ideas. When a watched provider ripens — answering real questions with no key — or a new model grows on a free node, the picker picks it and posts it to the <b>Message board</b> as a note from "The Picker", saved where you read it. The same growth is only sent once.</p>
+      <div id="picker-body"><div class="skel"></div></div>
+      <div class="row" style="margin-top:10px"><button class="btn" id="tb-run-picker">Pick now</button></div>
+    </div>
+
     <div class="card" style="margin-top:var(--gap)"><h2>Android UI</h2>
       <p class="news-note">MHexeract checks its own pages every day and automatically adds the mobile polish — finger-sized buttons, no zoom when you tap a field, no tap flash, and a layout that fits the screen without scrolling sideways — to any page missing it, and refreshes older polish to the latest version, for example after an update.</p>
       <div id="ui-body"><div class="skel"></div></div>
@@ -1393,6 +1399,7 @@ function renderToolbox(){
     row("lan_scan","Also look on my home network", "Off means only this device and cloud providers are checked", bg.lan_scan) +
     row("gardener","Key & provider gardener", "Checks keys and providers, removes rejected keys, parks dead providers, adopts free AI nodes · " + every(bg.gardener), bg.gardener) +
     row("strive","Strive for the no-cost goals", "Verifies keyless anonymous providers with real questions, hunts for new ones, reports what it finds · " + every(bg.strive), bg.strive) +
+    row("picker","Picker — send new ideas that have grown", "Harvests ripe providers and new free models, posts them to the message board · " + every(bg.picker), bg.picker) +
     row("ui_polish","Automated Android UI improvement", "Daily check: pages missing the mobile polish get it added automatically · " + every(bg.ui_polish), bg.ui_polish) +
     row("obd_update","OBD code database updates", "Weekly check: downloads the newest open-source trouble-code database · " + every(bg.obd_update), bg.obd_update);
   const ui=bg.ui_polish||{};
@@ -1419,6 +1426,12 @@ function renderToolbox(){
   if(cd.length) sh+=`<p class="news-note">Watching for new anonymous providers: ${cd.map(c=>`${esc(c.name)} (${c.status==="answers"?"answers — see above":c.status==="listed_only"?"lists models but does not answer keyless":"unreachable"})`).join(", ")}</p>`;
   sh+=`<p class="news-note">Free AI nodes online: ${s.free_nodes_online||0} · free models available: ${s.free_models||0}</p>`;
   $("#strive-body").innerHTML=sh;
+  const pk=bg.picker||{};
+  let ph="";
+  const picks=(pk.picked||[]).slice().reverse();
+  if(picks.length) ph+=picks.map(p=>`<div class="kv"><span>${esc(p.title||"")}</span><code>${p.at?fmtWhen(p.at):""}</code></div>`).join("") + '<p class="news-note">Each pick was also posted to the Message board.</p>';
+  else ph+='<p class="news-note">Nothing ripe yet — tap "Pick now" to check the field.</p>';
+  $("#picker-body").innerHTML=ph;
 }
 async function loadToolbox(){
   if(STATIC){ $("#tb-chip").textContent="static snapshot"; return }
@@ -1442,6 +1455,7 @@ $("#tb-run-repos").addEventListener("click",()=>toolboxRun("repos","Syncing repo
 $("#tb-run-improve").addEventListener("click",()=>toolboxRun("improve","Improving"));
 $("#tb-run-gardener").addEventListener("click",()=>toolboxRun("gardener","Checking keys and providers"));
 $("#tb-run-strive").addEventListener("click",()=>toolboxRun("strive","Striving toward the no-cost goals"));
+$("#tb-run-picker").addEventListener("click",()=>toolboxRun("picker","Picking what's grown"));
 $("#tb-run-ui").addEventListener("click",()=>toolboxRun("ui","Checking UI"));
 $("#tb-close").addEventListener("click",async()=>{
   if(!confirm("Shut MHexeract down completely? The gateway stops, and on Android the app closes too. Your keys and settings stay saved — just open MHexeract again to restart.")) return;

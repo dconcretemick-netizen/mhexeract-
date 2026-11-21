@@ -2178,6 +2178,11 @@ def _scheduled_improver(gw: "Gateway", lock: threading.Lock, poll_s: float = 300
                 run_strive(gw)
         except Exception:  # noqa: BLE001
             log.exception("goal striving failed")
+        try:  # pick what has grown and send it on as new ideas (to the message board)
+            if gw.store.get_policy("bg_picker", True):
+                run_picker(gw)
+        except Exception:  # noqa: BLE001
+            log.exception("picker failed")
         try:  # audit the pages for the automated Android UI polish
             if gw.store.get_policy("bg_ui_polish", True):
                 run_ui_polish(gw)
@@ -3215,6 +3220,7 @@ def save_keys(updates: dict) -> dict:
 # --------------------------------------------------------------------------- #
 GARDENER_EVERY_HOURS = 6
 STRIVE_EVERY_HOURS = 12
+PICKER_EVERY_HOURS = 24
 STRIVE_CANDIDATES = [  # anonymous/keyless providers the strive job watches (reported, never auto-enabled)
     {"id": "llm7", "name": "LLM7", "base": "https://api.llm7.io/v1"},
 ]
@@ -3488,6 +3494,94 @@ def strive_status(gw: "Gateway") -> dict:
     }
 
 
+def run_picker(gw: "Gateway", force: bool = False) -> Optional[dict]:
+    """Pick what has grown and send it on as new ideas.
+
+    The farmer (strive) grows the field and the cultivator (gardener)
+    nurtures it; the picker harvests what ripened and sends it on. A pick
+    is a NEW idea backed by evidence, never a guess:
+      * a candidate provider the strive job found answering keyless that
+        has not been picked before, and
+      * a model that newly appeared on a free node since the last pick
+        (the catalog grew).
+    Every pick is saved in the key-health file and posted to the message
+    board as a note from "The Picker", so it waits where the developer
+    reads. Picks are deduplicated: the same growth is sent only once.
+    The first run only plants the model baseline — growth counts from
+    the second run on, so a fresh install does not flood the board.
+    """
+    every = float(os.getenv("GATEWAY_PICKER_HOURS")
+                  or gw.defaults.get("picker_every_hours", PICKER_EVERY_HOURS))
+    last = float(gw.store.get_policy("last_picker_ts", 0) or 0)
+    if not force and every > 0 and time.time() - last < every * 3600:
+        return None
+    now = time.time()
+    health = load_key_health()
+    pk = health.setdefault("picker", {})
+    picked = list(pk.get("picked", []))
+    sent = {p.get("key") for p in picked}
+    fresh = []
+    for f in health.get("strive", {}).get("findings", []):
+        key = f"candidate:{f.get('id')}"
+        if key in sent:
+            continue
+        fresh.append({"key": key, "kind": "provider", "at": now,
+                      "title": f"New anonymous provider is ripe: {f.get('name')}",
+                      "detail": f"{f.get('name')} now answers real questions with no key and no "
+                                f"account (model {f.get('model')}). Idea: add it as a built-in "
+                                f"keyless provider so everyone gets it free."})
+    nodes = load_nodes(gw.nodes_path)
+    current = {}
+    for n in nodes.get("nodes", []):
+        if not n.get("free"):
+            continue
+        ids = [m.get("id") if isinstance(m, dict) else str(m) for m in n.get("models", [])]
+        current[n.get("name") or n.get("id")] = sorted(i for i in ids if i)
+    known = pk.get("known_models")
+    if known:
+        for name, models in current.items():
+            before = set(known.get(name, []))
+            for mid in models:
+                if mid in before:
+                    continue
+                key = f"model:{name}:{mid}"
+                if key in sent:
+                    continue
+                fresh.append({"key": key, "kind": "model", "at": now,
+                              "title": f"New free model grew on {name}: {mid}",
+                              "detail": f"{mid} newly appeared on the free node {name}. Idea: it "
+                                        f"joins the free pool automatically — try it on a hard "
+                                        f"question and see how it does."})
+    pk["known_models"] = current
+    for p in fresh:
+        picked.append(p)
+        sent.add(p["key"])
+        try:
+            board_post({"name": "The Picker", "message": f"{p['title']}\n\n{p['detail']}"})
+        except (ValueError, OSError):
+            pass
+        log.info("picker: picked %s", p["key"])
+    pk["picked"] = picked[-50:]
+    pk["checked_at"] = now
+    _save_key_health(health)
+    gw.store.set_policy("last_picker_ts", now)
+    return {"checked_at": now, "picked": fresh, "total": len(pk["picked"])}
+
+
+def picker_status(gw: "Gateway") -> dict:
+    """Picker summary for the Toolbox: the latest harvested ideas."""
+    health = load_key_health()
+    pk = health.get("picker", {})
+    return {
+        "on": bool(gw.store.get_policy("bg_picker", True)),
+        "every": float(os.getenv("GATEWAY_PICKER_HOURS")
+                       or gw.defaults.get("picker_every_hours", PICKER_EVERY_HOURS)),
+        "unit": "hours",
+        "last_at": float(gw.store.get_policy("last_picker_ts", 0) or 0) or None,
+        "picked": pk.get("picked", [])[-10:],
+    }
+
+
 _GUI_STARTED_AT: float = 0.0
 _GUI_SERVER = None  # the running ThreadingHTTPServer, so the Toolbox can shut it down
 
@@ -3647,11 +3741,13 @@ def toolbox_status(gw: "Gateway") -> dict:
             "lan_scan": {"on": bool(nodes_config(gw).get("lan_scan", True))},
             "gardener": gardener_status(gw),
             "strive": strive_status(gw),
+            "picker": picker_status(gw),
             "ui_polish": ui_status(gw),
             "obd_update": obd_data_status(gw),
         },
         "gardener": gardener_status(gw),
         "strive": strive_status(gw),
+        "picker": picker_status(gw),
         "obd_data": obd_data_status(gw),
     }
 
@@ -4728,7 +4824,7 @@ def serve_gui(gw: "Gateway", host: str = "127.0.0.1", port: int = 8765, token: O
                     for name, policy in (("auto_improve", "bg_auto_improve"), ("repo_sync", "bg_repo_sync"),
                                          ("node_scan", "bg_node_scan"), ("lan_scan", "bg_lan_scan"),
                                          ("gardener", "bg_gardener"), ("ui_polish", "bg_ui_polish"),
-                                         ("strive", "bg_strive"),
+                                         ("strive", "bg_strive"), ("picker", "bg_picker"),
                                          ("obd_update", "bg_obd_update")):
                         if name in bg:
                             gw.store.set_policy(policy, bool(bg[name]))
@@ -4759,12 +4855,14 @@ def serve_gui(gw: "Gateway", host: str = "127.0.0.1", port: int = 8765, token: O
                             run_node_scan(gw, lock, force=True)  # adopt free nodes / drop cleaned ones
                         elif job_name == "strive":
                             run_strive(gw, force=True)
+                        elif job_name == "picker":
+                            run_picker(gw, force=True)
                         elif job_name == "ui":
                             run_ui_polish(gw, force=True)
                         elif job_name == "obd":
                             run_obd_update(gw, force=True)
                         else:
-                            return self._send(400, {"error": "job must be improve, repos, nodes, gardener, strive, ui or obd"})
+                            return self._send(400, {"error": "job must be improve, repos, nodes, gardener, strive, picker, ui or obd"})
                     except (GatewayError, ValueError, OSError) as e:
                         return self._send(400, {"error": str(e)})
                 with lock:
