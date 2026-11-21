@@ -57,7 +57,7 @@ jobs:
         run: gradle --no-daemon assembleDirectRelease
 
       - name: Rename APK
-        run: cp android/app/build/outputs/apk/direct/release/app-release.apk MCUBED-${{ github.run_number }}.apk
+        run: cp android/app/build/outputs/apk/direct/release/app-direct-release.apk MCUBED-${{ github.run_number }}.apk
       - name: Build Play bundle (AAB)
         if: github.event_name != 'pull_request'
         working-directory: android
