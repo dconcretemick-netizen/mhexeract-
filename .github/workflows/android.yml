@@ -54,7 +54,7 @@ jobs:
           MCUBED_KEY_ALIAS: ${{ secrets.MCUBED_KEY_ALIAS }}
           MCUBED_VERSION_CODE: ${{ github.run_number }}
           MCUBED_VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('0.1.{0}', github.run_number) }}
-        run: gradle --no-daemon assembleRelease
+        run: gradle --no-daemon assembleDirectRelease
 
       - name: Rename APK
         run: cp android/app/build/outputs/apk/release/app-release.apk MCUBED-${{ github.run_number }}.apk
