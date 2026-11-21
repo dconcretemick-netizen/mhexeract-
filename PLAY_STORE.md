@@ -84,7 +84,8 @@ direct APK or vice versa without uninstalling first. That's normal.
 > • News from across the political spectrum, a built-in web reader, and a
 >   games shelf (Oregon Trail, Solitaire, Tetris, Blackjack and more)
 > • A message board where you can leave the developer a note, a bug report or
->   an idea — posts are saved on your own device, never uploaded
+>   an idea — saved on your own device, with an optional "Send via GitHub"
+>   that posts it as a public issue on the project repository
 >
 > Free tiers have quotas and the best free models trail the top paid ones on
 > the hardest reasoning. MHexeract's answer is breadth and failover — many
@@ -98,7 +99,9 @@ direct APK or vice versa without uninstalling first. That's normal.
 > MHexeract is an AI gateway that runs on your device. The developer collects
 > no personal data: there are no accounts, no analytics, no advertising, and
 > no tracking. The in-app message board saves its posts only on your own
-> device — they are never transmitted anywhere.
+> device. If you choose its "Send via GitHub" button, the text you entered is
+> posted as a public issue on the project's GitHub repository, under your own
+> GitHub account — only when you tap it, and only what you wrote.
 >
 > - **AI keys** you enter are stored only on your device and are sent only to
 >   the provider they belong to, to answer your requests.

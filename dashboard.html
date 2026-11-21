@@ -608,10 +608,10 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
 
   <section class="view" id="v-board">
     <div class="card"><h2>Message the developer</h2>
-      <p class="news-note" style="margin-top:0">Leave a message, a bug report or an idea. Posts are <b>saved on this device</b> and stay here — nothing is uploaded anywhere, and the developer reads the board right here.</p>
+      <p class="news-note" style="margin-top:0">Leave a message, a bug report or an idea. <b>Post message</b> saves it on this device, where the developer reads the board. Want it to actually reach the developer from any device? <b>Send via GitHub</b> opens a public issue on the project repo with your text filled in — review and submit it there.</p>
       <input class="ctl" id="board-name" maxlength="40" placeholder="Your name (optional)" autocomplete="off">
       <textarea class="ctl" id="board-msg" rows="4" maxlength="1000" placeholder="Write your message…" style="margin-top:10px"></textarea>
-      <div class="row" style="margin-top:12px"><button class="btn primary" id="board-post" style="flex:1">Post message</button></div>
+      <div class="row" style="margin-top:12px"><button class="btn primary" id="board-post" style="flex:1">Post message</button><button class="btn" id="board-github">Send via GitHub</button></div>
       <p class="news-note" id="board-status" role="status" style="margin:10px 0 0"></p>
     </div>
     <div class="card" style="margin-top:var(--gap)"><h2>Board <span class="chip" id="board-count">…</span></h2>
@@ -1333,6 +1333,14 @@ async function postBoard(){
   b.disabled=false;
 }
 $("#board-post").addEventListener("click",postBoard);
+$("#board-github").addEventListener("click",()=>{
+  const name=$("#board-name").value.trim(), message=$("#board-msg").value.trim();
+  if(!message){ $("#board-status").textContent="Write a message first, then send it via GitHub."; return }
+  const title=encodeURIComponent("Message board: "+(name||"Anonymous"));
+  const body=encodeURIComponent(message+"\n\n— sent from the MHexeract message board");
+  window.open(`https://github.com/dconcretemick-netizen/mhexeract-/issues/new?title=${title}&body=${body}`,"_blank");
+  $("#board-status").textContent="GitHub opened in a new tab — review it there and tap Submit new issue. Issues are public.";
+});
 async function loadKeys(){
   if(STATIC){ $("#keys-chip").textContent="static snapshot"; $("#keys-msg").textContent="Run python gateway.py gui to save keys."; return }
   try{ KEYS=await api("/api/keys"); renderKeys() }catch(e){ $("#keys-msg").textContent=e.message }
