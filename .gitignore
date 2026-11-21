@@ -5,6 +5,7 @@ __pycache__/
 *.db-shm
 .env
 keys.json
+board.json
 key_health.json
 report.html
 gui.log
@@ -33,6 +34,7 @@ build_info.json
 *.log
 repos.json
 keys.json
+board.json
 repos/
 nodes.json
 update.apk

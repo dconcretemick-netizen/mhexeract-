@@ -369,6 +369,7 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
       <button class="menu-item" data-mv="toolbox" role="menuitem">Toolbox</button>
       <button class="menu-item" data-mv="update" role="menuitem">Update</button>
       <button class="menu-item" data-mv="uses" role="menuitem">What it's for</button>
+      <button class="menu-item" data-mv="board" role="menuitem">Message board</button>
       <button class="menu-item" id="menu-newchat" role="menuitem">+ New chat</button>
       <div class="menu-head">Stats</div>
       <button class="menu-item" data-s="overview" role="menuitem">Overview</button>
@@ -452,6 +453,7 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
       <button class="tile" data-go="toolbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4.5 4.5 0 0 0-6 6L3 18l3 3 5.7-5.7a4.5 4.5 0 0 0 6-6L14 13l-3-3 3.7-3.7z"/></svg><b>Toolbox</b><small id="tile-ai-sub">Keys, background jobs and the AI pool</small></button>
       <button class="tile" data-go="update"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><b>Update</b><small id="tile-upd-sub">Check for the newest MHexeract</small></button>
       <button class="tile" data-go="uses"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg><b>What it's for</b><small>The best uses for MHexeract — and how it stays free</small></button>
+      <button class="tile" data-go="board"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 8h8M8 12h5"/></svg><b>Message board</b><small>Message the developer — posts save on this device</small></button>
     </div>
   </section>
 
@@ -602,6 +604,19 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
       <ul id="news-src-list"></ul>
     </div>
     <div id="news-list"><div class="card"><div class="skel"></div><div class="skel" style="margin-top:8px"></div></div></div>
+  </section>
+
+  <section class="view" id="v-board">
+    <div class="card"><h2>Message the developer</h2>
+      <p class="news-note" style="margin-top:0">Leave a message, a bug report or an idea. Posts are <b>saved on this device</b> and stay here — nothing is uploaded anywhere, and the developer reads the board right here.</p>
+      <input class="ctl" id="board-name" maxlength="40" placeholder="Your name (optional)" autocomplete="off">
+      <textarea class="ctl" id="board-msg" rows="4" maxlength="1000" placeholder="Write your message…" style="margin-top:10px"></textarea>
+      <div class="row" style="margin-top:12px"><button class="btn primary" id="board-post" style="flex:1">Post message</button></div>
+      <p class="news-note" id="board-status" role="status" style="margin:10px 0 0"></p>
+    </div>
+    <div class="card" style="margin-top:var(--gap)"><h2>Board <span class="chip" id="board-count">…</span></h2>
+      <div id="board-list"><div class="skel"></div></div>
+    </div>
   </section>
 
   <section class="view" id="v-uses">
@@ -911,6 +926,7 @@ function showView(v){
   if(v==="toolbox"){ loadKeys(); loadToolbox(); }
   if(v==="obd") loadObd(); else stopObdPoll();
   if(v==="home") loadHome();
+  if(v==="board") loadBoard();
 }
 document.querySelectorAll("nav.tabs button").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll("nav.tabs button").forEach(x=>x.setAttribute("aria-selected", x===b));
@@ -1296,6 +1312,27 @@ function renderKeys(){
       data-key-env="${esc(k.env)}" placeholder="${k.set?"Saved \u2014 leave blank to keep it":"Paste key here"}" aria-label="${esc(k.name)} key">
   </div>`).join("");
 }
+function renderBoard(posts){
+  $("#board-count").textContent = posts.length? `${posts.length} saved` : "no messages yet";
+  $("#board-list").innerHTML = posts.length? posts.map(p=>`<div class="key-row">
+    <div class="k-head"><b>${esc(p.name||"Anonymous")}</b><span class="spacer"></span><span class="chip">${new Date((p.ts||0)*1000).toLocaleString()}</span></div>
+    <p style="margin:6px 0 0;white-space:pre-wrap">${esc(p.message||"")}</p></div>`).join("")
+    : '<p class="news-note">No messages yet — be the first.</p>';
+}
+async function loadBoard(){
+  if(STATIC){ $("#board-count").textContent="static snapshot"; return }
+  try{ const d=await api("/api/board"); renderBoard(d.posts||[]) }catch(e){ $("#board-status").textContent=e.message }
+}
+async function postBoard(){
+  const name=$("#board-name").value.trim(), message=$("#board-msg").value.trim();
+  if(!message){ $("#board-status").textContent="Write a message first."; return }
+  const b=$("#board-post"); b.disabled=true;
+  try{ const d=await api("/api/board",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,message})});
+    $("#board-msg").value=""; $("#board-status").textContent="Saved — it stays on this device for the developer to read."; renderBoard(d.posts||[]) }
+  catch(e){ $("#board-status").textContent=e.message }
+  b.disabled=false;
+}
+$("#board-post").addEventListener("click",postBoard);
 async function loadKeys(){
   if(STATIC){ $("#keys-chip").textContent="static snapshot"; $("#keys-msg").textContent="Run python gateway.py gui to save keys."; return }
   try{ KEYS=await api("/api/keys"); renderKeys() }catch(e){ $("#keys-msg").textContent=e.message }

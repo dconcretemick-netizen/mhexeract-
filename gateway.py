@@ -3125,6 +3125,39 @@ def load_saved_keys() -> int:
     return sum(1 for n in KEY_NAMES if os.getenv(n))
 
 
+def board_path() -> Path:
+    """Where message-board posts live: the app's private data dir, like the keys."""
+    return Path(os.getenv("MHEXERACT_DATA", str(HERE))) / "board.json"
+
+
+def board_list() -> dict:
+    """Saved message-board posts, newest first. Posts never leave this device."""
+    try:
+        posts = json.loads(board_path().read_text())
+    except (OSError, ValueError):
+        posts = []
+    if not isinstance(posts, list):
+        posts = []
+    return {"posts": posts}
+
+
+def board_post(body: dict) -> dict:
+    """Save one message-board post (name optional, message required)."""
+    name = str(body.get("name") or "").strip()[:40]
+    message = str(body.get("message") or "").strip()[:1000]
+    if not message:
+        raise ValueError("write a message first")
+    posts = board_list()["posts"]
+    posts.insert(0, {"ts": int(time.time()), "name": name, "message": message})
+    posts = posts[:500]
+    path = board_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(posts, indent=1))
+    tmp.replace(path)
+    return {"posts": posts}
+
+
 def keys_status() -> dict:
     """Which key slots are set — never the keys themselves, only a last-4 hint."""
     out = []
@@ -4602,6 +4635,8 @@ def serve_gui(gw: "Gateway", host: str = "127.0.0.1", port: int = 8765, token: O
                     return self._send(400, {"error": str(e)})
             if u.path == "/api/keys":
                 return self._send(200, keys_status())
+            if u.path == "/api/board":
+                return self._send(200, board_list())
             if u.path == "/api/toolbox":
                 with lock:
                     return self._send(200, toolbox_status(gw))
@@ -4670,6 +4705,11 @@ def serve_gui(gw: "Gateway", host: str = "127.0.0.1", port: int = 8765, token: O
                 try:
                     return self._send(200, obd_session().clear_codes())
                 except ObdError as e:
+                    return self._send(400, {"error": str(e)})
+            if u.path == "/api/board":
+                try:
+                    return self._send(200, board_post(self._body()))
+                except (ValueError, OSError) as e:
                     return self._send(400, {"error": str(e)})
             if u.path == "/api/keys":
                 try:
