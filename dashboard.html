@@ -328,6 +328,7 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
   nav.tabs button svg{width:19px;height:19px;padding:0;background:none!important}
   nav.tabs button[aria-selected=true]{background:color-mix(in srgb,var(--accent) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border))}
 }
+.xfer{margin-top:10px;border-top:1px solid var(--border);padding-top:8px;font-size:13px;color:var(--muted)}
 .council{margin-top:10px;border-top:1px solid var(--border);padding-top:8px;font-size:13.5px}
 .council summary{cursor:pointer;color:var(--muted);font-weight:600}
 .council-a{margin-top:8px;padding:8px 10px;background:var(--surface-2);border-radius:10px}
@@ -461,6 +462,7 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
     <div class="chat">
       <div class="chat-top">
         <select id="model" class="ctl" aria-label="Model"><option value="mhexeract">MHexeract (auto)</option><option value="mhexeract-efficient">MHexeract fast</option><option value="mhexeract-quality">MHexeract best quality</option><option value="mhexeract-council">Council — models confer for the best answer</option></select>
+        <button class="btn" id="btn-transfer" title="Hand this conversation to a different AI — it re-answers with the full history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>Transfer</button>
         <button class="btn" id="btn-units" aria-expanded="false" aria-controls="units-info" title="AI units in use"><span class="u-dot" id="units-dot"></span><span id="units-count">AI</span></button>
         <button class="btn" id="btn-api" aria-expanded="false" aria-controls="api-info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></svg>API</button>
         <button class="btn" id="btn-newchat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>New chat</button>
@@ -472,6 +474,7 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
           <input type="checkbox" id="free-only" role="switch" checked></label>
         <ul class="units" id="units-list"></ul>
         <p class="units-more" id="units-more"></p>
+        <p class="units-more" id="units-retired"></p>
       </div>
       <div class="card api-info" id="api-info" hidden>
         <h2>Use MHexeract as an OpenAI model</h2>
@@ -1213,6 +1216,11 @@ function msgEl(m,i){
   if(m.role==="user"){ d.className="msg user"; d.textContent=m.content; return d }
   d.className="msg bot"+(m.error?" err":"");
   d.innerHTML=m.error?esc(m.content):md(m.content);
+  if(m.meta&&m.meta.transfer){ const t=document.createElement("div"); t.className="xfer";
+    t.textContent=m.meta.transfer.auto
+      ? `Transferred from ${m.meta.transfer.from_model} — ${m.meta.transfer.reason}. Answered instead by ${m.meta.model_alias||m.meta.transfer.to_model}.`
+      : `You transferred this conversation from ${m.meta.transfer.from_model} to ${m.meta.model_alias||m.meta.transfer.to_model}.`;
+    d.appendChild(t) }
   if(m.meta&&m.meta.council&&m.meta.council.members&&m.meta.council.members.length){ const det=document.createElement("details"); det.className="council";
     det.innerHTML=`<summary>How the council answered — ${m.meta.council.members.length} models conferred${m.meta.council.judge?`, synthesized by ${esc(m.meta.council.judge)}`:""}</summary>`+
       m.meta.council.members.map(x=>`<div class="council-a"><b>${esc(x.alias)}</b> · ${esc(x.provider)}<div>${md(x.text)}</div></div>`).join("");
@@ -1248,6 +1256,24 @@ async function sendChat(text){
   }catch(e){ convo.push({role:"assistant",content:"Could not get an answer: "+e.message+". Add a key in AI keys (or .env), or pick another model.",error:true}) }
   finally{ sending=false; $("#send").disabled=false; saveConvo(); renderChat(); $("#prompt").focus() }
 }
+async function transferChat(){
+  if(sending) return;
+  if(STATIC){ toast("Run python gateway.py gui to chat"); return }
+  let li=-1; for(let i=convo.length-1;i>=0;i--){ if(convo[i].role==="assistant"&&!convo[i].error){ li=i; break } }
+  let fromModel=null;
+  if(li>=0){ fromModel=(convo[li].meta&&(convo[li].meta.model_alias||convo[li].meta.model))||null; convo.splice(li,1) }
+  if(!fromModel){ const sel=$("#model").value; if(sel&&!sel.startsWith("mhexeract")) fromModel=sel }
+  if(!fromModel){ toast("Nothing to transfer yet — ask something first, or pin a model"); return }
+  sending=true; saveConvo(); renderChat(true);
+  try{
+    const r=await api("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({messages:convo.filter(m=>!m.error).map(m=>({role:m.role,content:m.content})),strategy:"balanced",model:null,transfer_from:fromModel})});
+    lastReq=r.request_id; convo.push({role:"assistant",content:r.text,meta:r}); setTimeout(loadUnits,300);
+    if(r.transfer) toast("Transferred to "+(r.model_alias||r.model)); else toast("No other AI is available to transfer to");
+  }catch(e){ convo.push({role:"assistant",content:"Transfer failed: "+e.message,error:true}) }
+  finally{ sending=false; saveConvo(); renderChat() }
+}
+$("#btn-transfer").addEventListener("click",transferChat);
 function growPrompt(){const t=$("#prompt"); t.style.height="auto"; t.style.height=Math.min(180,t.scrollHeight)+"px"}
 $("#prompt").addEventListener("input",growPrompt);
 $("#prompt").addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){ e.preventDefault(); sendChat($("#prompt").value) } });
@@ -1619,6 +1645,8 @@ function renderUnits(){
   $("#free-only").checked = d.free_only !== false;
   $("#free-note").textContent = d.free_only!==false ? "MHexeract never calls anything that costs money." : "Paid AI is allowed. Providers may charge your account.";
   $("#units-more").textContent = d.more_with_key ? `${d.more_with_key} more providers are ready to add with a key. See Stats > Models > AI nodes.` : "";
+  const rt=(d.retired||[]).slice().reverse();
+  $("#units-retired").textContent = rt.length ? `Auto-updated: removed ${rt.map(x=>`${shortModel(x.alias)} (${new Date(x.at*1000).toLocaleDateString()})`).join(", ")} — the provider no longer supports ${rt.length===1?"that model":"those models"}. The catalog refreshes itself, so renamed replacements are picked up automatically.` : "";
 }
 async function loadUnits(){ if(STATIC) return; try{ UNITS=await api("/api/units"); renderUnits() }catch(e){ $("#units-count").textContent="AI" } }
 $("#free-only").addEventListener("change", async e=>{

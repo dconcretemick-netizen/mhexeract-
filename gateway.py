@@ -246,6 +246,7 @@ class GatewayResponse:
     finish_reason: str = ""
     compression: Optional[dict] = None
     council: Optional[dict] = None
+    transfer: Optional[dict] = None
     raw: Any = field(default=None, repr=False)
 
     def summary(self) -> dict:
@@ -287,12 +288,46 @@ _REFUSAL = re.compile(r"^(i'?m sorry|i cannot|i can'?t help|as an ai)", re.I)
 
 
 def classify_task(messages: list[dict]) -> str:
-    text = " ".join(str(m.get("content", "")) for m in messages if m.get("role") != "system").lower()
+    convo = [str(m.get("content", "")) for m in messages if m.get("role") != "system"]
+    text = " ".join(convo).lower()
     scores = {t: len(re.findall(p, text)) for t, p in _TASK_PATTERNS.items()}
+    # The newest user message steers the directing, so it counts three times:
+    # a chat that began as code but now asks for a poem is routed as creative.
+    latest = next((str(m.get("content", "")) for m in reversed(messages)
+                   if m.get("role") == "user"), "").lower()
+    if latest:
+        for t, p in _TASK_PATTERNS.items():
+            scores[t] += 2 * len(re.findall(p, latest))
     best = max(scores, key=scores.get)
     if scores[best] == 0:
-        return "reasoning" if len(text) > 4000 else "simple"
+        return "reasoning" if len(latest) > 1200 or len(text) > 4000 else "simple"
     return best
+
+
+_UNSUPPORTED_MODEL = re.compile(
+    r"model\b.{0,60}(not supported|not found|does not exist|is not available|not available)"
+    r"|not supported.{0,30}\bmodel\b|no such model|unknown model", re.I)
+
+
+def _is_unsupported_model(e: Exception) -> bool:
+    """True when a provider rejected the call because the model itself is gone
+    or unsupported (retired or renamed by the provider) — not a transient failure."""
+    if type(e).__name__ in ("NotFoundError", "ModelNotFoundError"):
+        return True
+    return bool(_UNSUPPORTED_MODEL.search(str(e)))
+
+
+def _poor_reason(text: str, finish_reason: str, task_type: str, wants_json: bool) -> str:
+    """Why an answer scored poorly, in plain words — used when it is transferred."""
+    if text and _REFUSAL.match(text.strip()):
+        return "it refused to answer"
+    if finish_reason == "length":
+        return "its answer was cut off"
+    if wants_json:
+        return "it returned invalid JSON"
+    if task_type in ("code", "reasoning") and len(text or "") < 40:
+        return "its answer was too short"
+    return "its answer scored poorly"
 
 
 def auto_evaluate(text: str, finish_reason: str, task_type: str, wants_json: bool) -> float:
@@ -1045,6 +1080,39 @@ class Gateway:
         self.models, self._node_info = models, info
         return sum(1 for s in models.values() if s.provider.startswith("node:"))
 
+    def _retire_unsupported(self, spec: "ModelSpec", route: "Route") -> None:
+        """Auto-update the AI units: a provider said this model is not supported.
+
+        The model is quarantined so directing stops sending it traffic, a node
+        model is removed from the catalog at once (a built-in model stays
+        quarantined until the lapse, in case the provider restores it), the
+        retirement is recorded for the AI units panel, and a full catalog
+        rescan is queued so a renamed replacement is adopted promptly.
+        """
+        now = time.time()
+        q = dict(self.store.get_policy("quarantine", {}))
+        q[spec.alias] = now + 7 * 24 * 3600
+        self.store.set_policy("quarantine", q)
+        retired = list(self.store.get_policy("retired_models", []))
+        retired.append({"alias": spec.alias, "model": route.model, "provider": spec.provider,
+                        "at": now, "reason": "the provider said this model is not supported"})
+        self.store.set_policy("retired_models", retired[-30:])
+        if spec.provider.startswith("node:"):
+            nid = spec.provider[5:]
+            mid = route.model.split("/", 2)[-1]
+            try:
+                d = load_nodes(self.nodes_path)
+                for n in d.get("nodes", []):
+                    if n.get("id") == nid:
+                        n["models"] = [m for m in n.get("models", []) if m.get("id") != mid]
+                Path(self.nodes_path).write_text(json.dumps(d, indent=1))
+                self.load_nodes()
+            except (OSError, ValueError):
+                pass
+        self.store.set_policy("last_node_scan_ts", 0)  # the background loop refreshes the catalog soon
+        log.info("auto-update: retired %s (%s) — the provider reports the model is not supported",
+                 spec.alias, route.model)
+
     # -- policy accessors (learned values override config) ------------------ #
     def task_policy(self) -> dict:
         return dict(self._default_task_policy, **self.store.get_policy("task_policy", {}))
@@ -1222,6 +1290,7 @@ class Gateway:
     def chat(self, messages: list[dict] | str, *, strategy: Optional[str] = None, tier: Optional[str] = None,
              models: Optional[list[str]] = None,
              use_cache: bool = True, task_type: Optional[str] = None, _allow_compress: bool = True,
+             transfer_from: Optional[str] = None,
              **completion_kwargs) -> GatewayResponse:
         if isinstance(messages, str):
             messages = [{"role": "user", "content": messages}]
@@ -1229,11 +1298,13 @@ class Gateway:
         task_type = task_type or classify_task(messages)
         wants_json = (completion_kwargs.get("response_format") or {}).get("type") == "json_object"
 
-        # cache: identical prompts are answered instantly
-        key = hashlib.sha256(json.dumps([messages, tier, models, completion_kwargs], sort_keys=True,
+        # cache: identical prompts are answered instantly (a transfer always
+        # goes to a fresh AI, so it never reads the cache)
+        key = hashlib.sha256(json.dumps([messages, tier, models, transfer_from, completion_kwargs], sort_keys=True,
                                         default=str).encode()).hexdigest()
         ttl = float(self.defaults.get("cache_ttl_s", 900))
-        if use_cache and key in self._cache and time.time() - self._cache[key][0] < ttl:
+        if use_cache and not transfer_from and key in self._cache and time.time() - self._cache[key][0] < ttl \
+                and self._cache[key][1].model_alias in self.models:
             cached = self._cache[key][1]
             rid = uuid.uuid4().hex[:12]
             self.store.log_attempt(request_id=rid, alias=cached.model_alias, provider=self.models[cached.model_alias].provider,
@@ -1269,14 +1340,34 @@ class Gateway:
                         continue
             if chain is None:
                 raise
+        # Transfer: the conversation is being handed to another AI. Direct it to
+        # a different provider than the one named; the named provider stays in
+        # the chain as a last resort, so the transfer degrades honestly.
+        xfer_from_provider: Optional[str] = None
+        if transfer_from:
+            for spec in self.models.values():
+                if spec.alias == transfer_from or any(r.model == transfer_from for r in spec.routes):
+                    xfer_from_provider = spec.provider
+                    break
+            if xfer_from_provider:
+                for idx, (spec, _route, _expl) in enumerate(chain):
+                    if spec.provider != xfer_from_provider:
+                        if idx:
+                            chain.insert(0, chain.pop(idx))
+                        break
         rid = uuid.uuid4().hex[:12]
         attempts: list[dict] = []
+        transferred: Optional[dict] = None  # set when a poor answer is handed to another AI
+        skip_alias: Optional[str] = None  # the transferred-from model, skipped for the rest of the request
+        dead_aliases: set[str] = set()  # models a provider just said are not supported (auto-retired)
         retries = self.max_retries()
 
         dead_transports: set[str] = set()  # e.g. a bad OpenRouter key fails every OpenRouter route
         max_attempts = int(self.defaults.get("max_attempts_per_request", 8))
         deadline = time.time() + float(self.defaults.get("request_deadline_s", 120))
         for ci, (spec, route, exploratory) in enumerate(chain):
+            if spec.alias in dead_aliases or (skip_alias and spec.alias == skip_alias):
+                continue  # retired as unsupported, or transferred away from: do not ask it again
             # same model reachable via another transport later in the chain? then fail over instantly
             has_sibling = any(s2.alias == spec.alias for s2, _, _ in chain[ci + 1:])
             if len(attempts) >= max_attempts or time.time() > deadline:
@@ -1286,6 +1377,7 @@ class Gateway:
             tkey = "openrouter" if route.via == "openrouter" else spec.provider
             if tkey in dead_transports or not self.breaker.available(bkey):
                 continue
+            hand_over = False  # set when a poor answer transfers the request to another AI
             for i in range(retries + 1):
                 t0 = time.time()
                 try:
@@ -1299,6 +1391,12 @@ class Gateway:
                                            error_type=etype, error=str(e)[:500], latency_ms=ms, retry_index=i,
                                            exploratory=int(exploratory))
                     self.breaker.failure(bkey)
+                    if _is_unsupported_model(e):
+                        # the provider retired/renamed this model: update the AI
+                        # units now instead of failing on it again next time
+                        self._retire_unsupported(spec, route)
+                        dead_aliases.add(spec.alias)
+                        break
                     if isinstance(e, (litellm.AuthenticationError, litellm.PermissionDeniedError)):
                         dead_transports.add(tkey)
                         break
@@ -1327,16 +1425,42 @@ class Gateway:
                                        prompt_tokens=p_tok, completion_tokens=c_tok, latency_ms=ms, retry_index=i,
                                        exploratory=int(exploratory), auto_quality=aq, finish_reason=finish,
                                        original_tokens=orig_tok, compressed=int(bool(comp_info)))
+                # Directing, with a quality gate: a poor answer is not accepted
+                # when another AI can try. The conversation transfers to the next
+                # provider instead — at most one transfer per request.
+                if aq < 0.5 and transferred is None and xfer_from_provider is None:
+                    later = [s2 for s2, _, _ in chain[ci + 1:] if s2.provider != spec.provider]
+                    if later and len(attempts) < max_attempts and time.time() <= deadline:
+                        reason = _poor_reason(text, finish, task_type, wants_json)
+                        transferred = {"from_model": route.model, "from_provider": spec.provider,
+                                       "reason": reason, "auto": True}
+                        skip_alias = spec.alias
+                        attempts.append({"model": route.model,
+                                         "error": f"poor answer ({reason}); transferred to another AI"})
+                        log.info("request %s: poor answer from %s (%s); transferring to another AI",
+                                 rid, route.model, reason)
+                        hand_over = True
+                        break
+                xfer = None
+                if transferred is not None:
+                    xfer = {**transferred, "to_model": route.model, "to_provider": spec.provider}
+                elif xfer_from_provider and spec.provider != xfer_from_provider:
+                    xfer = {"from_model": transfer_from, "from_provider": xfer_from_provider,
+                            "to_model": route.model, "to_provider": spec.provider,
+                            "reason": "you asked to transfer", "auto": False}
                 out = GatewayResponse(
                     request_id=rid, text=text, model_alias=spec.alias, model=route.model, via=route.via,
                     task_type=task_type, tier_policy=policy_tier, prompt_tokens=p_tok, completion_tokens=c_tok,
                     latency_ms=ms, attempts=len(attempts) + 1,
-                    exploratory=exploratory, auto_quality=aq, finish_reason=finish, compression=comp_info, raw=resp)
+                    exploratory=exploratory, auto_quality=aq, finish_reason=finish, compression=comp_info,
+                    transfer=xfer, raw=resp)
                 if use_cache:
                     self._cache[key] = (time.time(), out)
                 self._maybe_judge(out, messages)
                 self._maybe_auto_improve()
                 return out
+            if hand_over:
+                continue
         raise AllRoutesFailed(attempts)
 
     def council_chat(self, messages: list[dict] | str, *, size: int = 3,
@@ -1522,6 +1646,7 @@ class Gateway:
             u["free"] = u["id"].startswith("node:") and (u["kind"] != "cloud" or u["id"][5:] in FREE_NODE_IDS) \
                 or u["id"] == "openrouter"
         return {"units": out, "latest": latest, "mock": self.mock, "free_only": free_only,
+                "retired": list(self.store.get_policy("retired_models", []))[-8:],
                 "in_use": sum(u["state"] == "working" for u in out), "available": len(out),
                 "models": sum(len(u["models"]) for u in out),
                 "more_with_key": sum(n.get("status") == "needs_key" and (not free_only or n.get("id") in FREE_NODE_IDS)
@@ -4901,7 +5026,8 @@ def serve_gui(gw: "Gateway", host: str = "127.0.0.1", port: int = 8765, token: O
                             r = gw.council_chat(msgs)
                         else:
                             r = gw.chat(msgs, strategy=b.get("strategy"), tier=b.get("tier") if not pinned else None,
-                                        models=pinned)
+                                        models=pinned,
+                                        transfer_from=str(b.get("transfer_from") or "") or None)
                         return self._send(200, {**r.summary(), "text": r.text})
                     if u.path == "/api/fetch":
                         b = self._body()
