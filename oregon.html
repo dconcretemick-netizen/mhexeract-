@@ -175,7 +175,7 @@ function newGame(){
     miles:0, lm:1, oxen:0, food:0, clothing:0, bullets:0,
     parts:{wheel:0,axle:0,tongue:0}, pace:"steady", rations:"filling",
     weather:"fair", rainUp:false, grassBad:0, riverDepth:0, riverWidth:0,
-    pendingDeaths:[], over:false, won:false, started:false, morale:70 };
+    pendingDeaths:[], over:false, won:false, started:false, morale:70, guideDays:0 };
 }
 function save(){ try{ if(S && !S.over) localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
 function loadSave(){ try{ const r=localStorage.getItem(SAVE_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
@@ -198,9 +198,11 @@ function partyHealth(){ const a=alive(); if(!a.length) return "very poor";
 function morale(){ if(S.morale==null) S.morale=70; return S.morale; }
 function addMorale(d){ S.morale=clamp(morale()+d,0,100); }
 function moraleWord(){ const m=morale(); return m>=75?"high":m>=50?"steady":m>=30?"low":"miserable"; }
+function guideLeft(){ if(S.guideDays==null) S.guideDays=0; return S.guideDays; }
 function dateStr(){ return MONTHS[S.date.m-1]+" "+S.date.d+", 1848"; }
 function addDay(){
   S.days++; S.date.d++;
+  if(guideLeft()>0) S.guideDays--;
   const dim=[31,29,31,30,31,30,31,31,30,31,30,31][S.date.m-1];
   if(S.date.d>dim){ S.date.d=1; S.date.m++; }
 }
@@ -220,14 +222,20 @@ function hurt(member, amt, cause){
     S.pendingDeaths.push({name:member.name, cause:cause||member.sick||"exhaustion"}); addMorale(-12); }
 }
 function pickWeather(){
-  const m=S.date.m, mt=S.miles>1150;
-  const t=Math.random();
-  if(m>=11||m<=2){ S.weather = t<0.45?"very cold":t<0.6?"snowing":t<0.8?"cold":"fair"; }
-  else if(m>=3&&m<=5){ S.weather = t<0.25?"rainy":t<0.4?"cool":t<0.85?"fair":"warm"; }
-  else if(m>=6&&m<=8){ S.weather = t<0.12?"rainy":t<0.3?"warm":t<0.45?"very hot":"fair"; }
+  const m=S.date.m, mtn=S.miles>=1150, t=Math.random();
+  if(mtn && m===9){            /* high country, early autumn: first snows */
+    S.weather = t<0.10?"snowing":t<0.30?"cold":t<0.55?"cool":"fair";
+  }
+  else if(mtn && m===10){      /* high country, late autumn: snow settles in */
+    S.weather = t<0.08?"blizzard":t<0.30?"snowing":t<0.48?"very cold":t<0.72?"cold":"fair";
+  }
+  else if(m>=11||m<=2){ S.weather = t<0.45?"very cold":t<0.6?"snowing":t<0.8?"cold":"fair";
+    if(mtn && S.weather==="snowing" && Math.random()<0.3) S.weather="blizzard"; }
+  else if(m>=3&&m<=5){ S.weather = t<0.22?"rainy":t<0.32?"thunderstorm":t<0.47?"cool":t<0.88?"fair":"warm"; }
+  else if(m>=6&&m<=8){ S.weather = t<0.10?"rainy":t<0.20?"thunderstorm":t<0.38?"warm":t<0.50?"very hot":(t<0.60&&!mtn)?"heat wave":"fair"; }
   else { S.weather = t<0.2?"rainy":t<0.45?"cool":t<0.55?"cold":"fair"; }
-  if(mt&&(S.weather==="rainy")&&m>=9) S.weather="snowing";
-  S.rainUp = S.weather==="rainy";
+  if(mtn&&(S.weather==="rainy")&&m>=9) S.weather="snowing";
+  S.rainUp = S.weather==="rainy"||S.weather==="thunderstorm";
 }
 
 /* ============================== screen engine ============================== */
@@ -289,7 +297,7 @@ function titleScreen(){
   setScreen({ art:ART.title, lines:[
     "",
     "          T H E   O R E G O N   T R A I L",
-    "           ~  3 R D   E D I T I O N  ~",
+    "           ~  4 T H   E D I T I O N  ~",
     "",
     "You may:",
     "",
@@ -312,6 +320,12 @@ function learnScreen(){
     "   wagon, pay a ferry, or wait for lower water.",
     " * Hunt to add meat, but you can only carry 100",
     "   pounds of it back to the wagon.",
+    " * Weather rules the trail: heat waves, thunder-",
+    "   storms and early mountain snow can slow you,",
+    "   sicken you, or cost you dearly.",
+    " * At the forts you can hire a trail guide — a",
+    "   quicker pace and a safer eye at the rivers,",
+    "   for as long as his days last.",
     " * Reach Oregon before winter. Snow in the",
     "   mountains has ended many a journey — and if",
     "   December 31 comes, the trail ends with it.",
@@ -396,6 +410,27 @@ function storeScreen(ctx){
   ];
   const menu=ITEMS.map(it=>({ label:it.name+" — "+money(it.price*mult)+" "+it.unit,
     fn:()=>buyScreen(ctx,it,mult) }));
+  if(fort){
+    const gPrice=Math.round(20*mult);
+    if(guideLeft()>0)
+      menu.push({ label:"Trail guide already hired ("+guideLeft()+" days left)", disabled:true, fn:()=>{} });
+    else
+      menu.push({ label:"Hire a trail guide — "+money(gPrice)+" (14 days)", disabled:S.money<gPrice,
+        fn:()=>{ S.money-=gPrice; S.guideDays=14;
+          setScreen({ lines:[
+            "You hire a weathered mountain man who knows",
+            "every ford, mudhole and cutoff between here",
+            "and the far country. For 14 days he rides",
+            "with your wagon:",
+            "",
+            " * a quicker pace on the trail,",
+            " * a practiced eye at the river crossings —",
+            "   safer fords, and less chance of drowning.",
+            "",
+            "When his 14 days are up, he rides his own way.",
+          ], cont:()=>storeScreen(ctx) });
+        } });
+  }
   menu.push({ label: fort ? "Leave the store" : "Leave the store and start down the trail",
     fn:()=>{
       if(!fort){
@@ -450,6 +485,7 @@ function statusLines(){
     "Weather:       "+S.weather,
     "Health:        "+partyHealth(),
     "Morale:        "+moraleWord(),
+    ...(guideLeft()>0?["Guide:         hired ("+guideLeft()+" days left)"]:[]),
     "Food:          "+Math.round(S.food)+" pounds",
     "Next landmark: "+nextLM().name+", "+milesToNext()+" miles",
     "Miles traveled: "+Math.round(S.miles),
@@ -481,6 +517,7 @@ function suppliesScreen(){
     "Wagon axles:   "+S.parts.axle,
     "Wagon tongues: "+S.parts.tongue,
     "Money left:    "+money(S.money),
+    ...(guideLeft()>0?["Trail guide:   hired ("+guideLeft()+" days left)"]:[]),
     "",
     "YOUR PARTY",
   ];
@@ -615,6 +652,10 @@ function oneDay(){
   if(S.grassBad>0){ mph*=0.6; S.grassBad--; }
   if(S.weather==="snowing"||S.weather==="very cold") mph*=0.55;
   if(S.weather==="rainy") mph*=0.8;
+  if(S.weather==="blizzard") mph*=0.3;
+  if(S.weather==="thunderstorm") mph*=0.65;
+  if(S.weather==="heat wave") mph*=0.85;
+  if(guideLeft()>0) mph*=1.1;
   if(S.oxen<4) mph*=0.8;
   S.miles+=mph;
   const fed=eatDay();
@@ -627,6 +668,9 @@ function oneDay(){
     if(p.sick) d-=7;
     if(S.weather==="very cold"||S.weather==="snowing") d-=1.2;
     if(S.weather==="very hot") d-=0.8;
+    if(S.weather==="blizzard") d-=3;
+    if(S.weather==="heat wave") d-=1.6;
+    if(S.weather==="thunderstorm") d-=0.2;
     if(morale()>=75) d+=0.4; else if(morale()<30) d-=1.2;
     if(morale()<15) d-=1.0;
     p.hp=clamp(p.hp+d,0,100);
@@ -684,7 +728,53 @@ function shortcutChoice(){
 }
 
 /* ============================== random events ============================== */
+function stormEvent(){
+  const lines=["A thunderstorm breaks over the plains — rain in",
+    "sheets, and lightning walking across the sky."];
+  if(Math.random()<0.45 && S.oxen>2){ S.oxen--;
+    lines.push("","The oxen stampede at a thunderclap. By the time",
+      "you round them up in the dark and the rain, one",
+      "of them is gone for good.",
+      "","You have "+S.oxen+" oxen left.");
+  } else { addDay(); eatDay();
+    lines.push("","You huddle under the wagon until it blows over.",
+      "The trail is a river of mud. You lose a day.");
+  }
+  addMorale(-2);
+  setScreen({ lines, cont:()=>{ afterAction(()=>travelScreen()); } });
+}
+function blizzardEvent(){
+  addDay(); eatDay(); addMorale(-3);
+  alive().forEach(p=>hurt(p,4));
+  setScreen({ lines:["Snow comes sideways out of the mountains — a",
+    "blizzard that swallows the trail whole. You",
+    "huddle in the lee of the wagon, feeding the",
+    "oxen from the wagon bed, and wait it out.",
+    "",
+    "A day is lost, and everyone is chilled through."],
+    cont:()=>{ afterAction(()=>travelScreen()); } });
+}
+function heatChoice(){
+  showChoice(
+    ["The sun stands straight overhead and the heat",
+     "shimmers off the plains. The oxen hang their",
+     "heads; there is no shade and no wind."],
+    [ { label:"Rest in what shade there is until evening", fn:()=>{ addDay(); eatDay(); addMorale(2);
+          alive().forEach(p=>{ p.hp=clamp(p.hp+3,0,100); });
+          return ["You rig the wagon canvas for shade and wait",
+            "out the worst of the heat. The party rests,",
+            "and no one falls sick from the sun."]; } },
+      { label:"Push on through the heat", fn:()=>{ alive().forEach(p=>hurt(p,5)); addMorale(-3);
+          const g=RI(6,10); S.miles+=g;
+          return ["You push on under the white sun. The miles",
+            "come — "+g+" of them — but they are paid for",
+            "in sweat and sun-sickness. Everyone is the",
+            "worse for it."]; } } ]);
+}
 function runEvent(){
+  if(S.weather==="thunderstorm" && Math.random()<0.6){ stormEvent(); return; }
+  if(S.weather==="blizzard" && Math.random()<0.6){ blizzardEvent(); return; }
+  if(S.weather==="heat wave" && Math.random()<0.5){ heatChoice(); return; }
   if(Math.random()<0.45){
     const cs=CHOICE_EVENTS.filter(c=>c.ok());
     if(cs.length){ pick(cs).show(); return; }
@@ -700,6 +790,23 @@ function showChoice(lines, opts){
   }})) });
 }
 const CHOICE_EVENTS=[
+  { ok:()=>S.miles<700 && S.food>=30, show:()=>showChoice(
+    ["A party of Pawnee warriors rides up and signs",
+     "that this is their country, and that wagons pay",
+     "a toll of food to pass through it in peace."],
+    [ { label:"Pay the toll (30 pounds of food)", fn:()=>{ S.food-=30; addMorale(2);
+        return ["You measure out flour and bacon. The Pawnee",
+          "nod gravely, and one rides ahead a way to show",
+          "you the firm ground. You travel easier for it."]; } },
+      { label:"Refuse and roll on", fn:()=>{ addMorale(-3);
+        if(Math.random()<0.4 && S.oxen>2){ S.oxen--;
+          return ["You shake your head and roll on. That night",
+            "an ox is missing from the herd — cut out",
+            "quiet as you please. The toll would have",
+            "been cheaper."]; }
+        return ["You shake your head and roll on. The Pawnee",
+          "watch you go, saying nothing. Nobody sleeps",
+          "quite soundly that night."]; } } ]) },
   { ok:()=>S.food>=40, show:()=>showChoice(
     ["A family's wagon sits by the trail with a broken",
      "axle, three days behind their train. The father",
@@ -761,6 +868,31 @@ const CHOICE_EVENTS=[
           "sure has buried fewer folks than clever."]; } } ]) },
 ];
 const EVENTS=[
+  function coldSpring(){
+    addMorale(3); alive().forEach(p=>{ p.hp=clamp(p.hp+4,0,100); });
+    return ["You find a cold, clear spring under the cotton-",
+      "woods — the first sweet water in days. The party",
+      "drinks deep, fills every keg, and rests an hour",
+      "in the shade, much refreshed."];
+  },
+  function miredInMud(){
+    if(guideLeft()>0)
+      return ["The trail turns to gumbo after the rain, but",
+        "your guide picks the firm line through it, and",
+        "the wagon never once sinks to the hubs."];
+    addDay(); eatDay();
+    return ["The trail turns to gumbo, and the wagon sinks",
+      "to its hubs again and again. You dig, pry and",
+      "double-team the oxen until dark. A day is lost",
+      "to the mud."];
+  },
+  function bitingFlies(){
+    addMorale(-4); alive().forEach(p=>hurt(p,1));
+    return ["Mosquitoes and biting green flies torment the",
+      "party from dawn to dark — in your eyes, your",
+      "ears, your food. Even the oxen stamp and toss.",
+      "Tempers run short all day."];
+  },
   function brokenPart(){
     const part=pick(["wheel","axle","tongue"]);
     if(S.parts[part]>0){ S.parts[part]--;
@@ -952,11 +1084,14 @@ function crossRiver(lm, method){
   else if(method==="caulk") p = d<=3?0.90   : d<=4.5?0.75 : d<=6?0.55   : 0.40;
   else if(method==="ferry") p = 0.98;
   else /* guide */           p = 0.92;
+  const guided = guideLeft()>0 && (method==="ford"||method==="caulk");
+  if(guided) p=Math.min(0.99, p+0.12);
   const lines=[];
   if(method==="ford") lines.push("You drive the oxen into the water and ford the "+lm.river+"...");
   if(method==="caulk") lines.push("You caulk the wagon box with tar and pitch, lash it fast,","and float it across the "+lm.river+" like a boat...");
   if(method==="ferry") lines.push("You pay the ferryman and ride his flatboat across the "+lm.river+".");
   if(method==="guide") lines.push("The Shoshone guide studies the water, then leads your","oxen in at a place you would never have chosen...");
+  if(guided) lines.push("Your trail guide picks the crossing place with a practiced eye.");
   if(Math.random()<p){
     lines.push("", "You make it across safely. The far bank, at last.");
     S.lm++;
@@ -973,7 +1108,7 @@ function crossRiver(lm, method){
     if(S.parts[part]>0){ S.parts[part]--; losses.push("a spare "+PARTNAME[part]); } }
   if(losses.length) lines.push("the wagon swamps! You lose: "+losses.join(", ")+".");
   else lines.push("the wagon swamps and ships a deal of water,","but by some mercy nothing is lost.");
-  const drownRisk = method==="ferry" ? 0.02 : d>=4.5 ? 0.30 : d>=3.5 ? 0.15 : 0.05;
+  const drownRisk = (method==="ferry" ? 0.02 : d>=4.5 ? 0.30 : d>=3.5 ? 0.15 : 0.05) * (guided?0.5:1);
   if(Math.random()<drownRisk && alive().length){
     const p2=pick(alive()); hurt(p2,999,"drowning");
     lines.push("", "In the struggle for the bank, "+p2.name+" is swept away.");
