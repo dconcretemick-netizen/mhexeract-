@@ -775,6 +775,34 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
         <button class="btn" id="obd-db-check">Check for code updates</button>
       </div>
     </div>
+
+    <div class="card" style="margin-top:var(--gap)"><h2>All sensors <span class="chip" id="obd-scan-chip"></span></h2>
+      <div id="obd-scan"><p class="news-note">Every sensor value this car reports — the full standard list, not just the live gauges. Takes a few seconds to read them all.</p></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="obd-scan-btn" disabled>Read all sensors</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:var(--gap)"><h2>Toyota enhanced data <span class="chip" id="obd-toyota-chip"></span></h2>
+      <div id="obd-toyota"><p class="news-note">Toyota's own diagnostic service (0x21) — transmission fluid temperatures the standard sensors don't expose, including the pan and torque-converter readings a dealer tool shows. Which ones answer depends on the model and year; unsupported ones are skipped.</p></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="obd-toyota-btn" disabled>Read Toyota data</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:var(--gap)"><h2>On-board monitoring <span class="chip" id="obd-m06-chip"></span></h2>
+      <div id="obd-m06"><p class="news-note">Mode 06: the car's own test results for the catalyst, oxygen sensors, EGR, EVAP and misfires, each with the limits it is judged against — the numbers behind the readiness check.</p></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="obd-m06-btn" disabled>Read test results</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:var(--gap)"><h2>Vehicle details</h2>
+      <div id="obd-info"><p class="news-note">Mode 09: the ECU calibration ids (CALID), calibration verification numbers (CVN) and ECU names — what a dealer tool shows on its vehicle-info screen. Useful for confirming a recall or software update was actually applied.</p></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="obd-info-btn" disabled>Read vehicle details</button>
+      </div>
+    </div>
   </section>
 
   <section class="view" id="v-update">
@@ -1523,6 +1551,10 @@ function renderObdStatus(){
   $("#obd-read").disabled=!d.connected;
   $("#obd-clear").disabled=!d.connected;
   $("#obd-emis-btn").disabled=!d.connected;
+  $("#obd-scan-btn").disabled=!d.connected;
+  $("#obd-toyota-btn").disabled=!d.connected;
+  $("#obd-m06-btn").disabled=!d.connected;
+  $("#obd-info-btn").disabled=!d.connected;
   if(d.last_error) $("#obd-msg").textContent=d.last_error;
 }
 function renderObdLive(d){
@@ -1612,7 +1644,57 @@ async function loadEmissions(){
     box.innerHTML=`<p style="margin:0 0 6px"><b>${esc(d.headline)}</b></p><p class="news-note" style="margin:0 0 8px">${esc(d.detail)}</p>${mon}${codes}`;
   }catch(e){ box.innerHTML=`<p class="news-note">${esc(e.message)}</p>` }
 }
+function obdFmt(v){
+  let val=v.value, unit=v.unit;
+  if(unit==="°C"&&typeof val==="number"){ val=Math.round(val*9/5+32); unit="°F" }
+  else if(unit==="km/h"&&typeof val==="number"){ val=Math.round(val*0.621371); unit="mph" }
+  else if(unit==="km"&&typeof val==="number"){ val=Math.round(val*0.621371*10)/10; unit="mi" }
+  else if(typeof val==="number") val=Math.round(val*100)/100;
+  return `${val} ${unit}`.trim();
+}
+function obdRows(values){
+  return values.map(v=>`<div class="kv"><span>${esc(v.name)}</span><code>${esc(obdFmt(v))}</code></div>`).join("");
+}
+async function loadObdScan(){
+  const box=$("#obd-scan"); box.innerHTML='<div class="skel"></div>';
+  try{ const d=await api("/api/obd/scan");
+    $("#obd-scan-chip").textContent=d.count?`${d.count} values`:"none answered";
+    box.innerHTML=d.count?obdRows(d.values):'<p class="news-note">No sensor values answered. Is the ignition on?</p>';
+  }catch(e){ box.innerHTML=`<p class="news-note">${esc(e.message)}</p>` }
+}
+async function loadObdToyota(){
+  const box=$("#obd-toyota"); box.innerHTML='<div class="skel"></div>';
+  try{ const d=await api("/api/obd/toyota");
+    $("#obd-toyota-chip").textContent=d.count?`${d.count} values`:"not supported";
+    box.innerHTML=d.count?obdRows(d.values):'<p class="news-note">This car did not answer any Toyota enhanced data — it may be a different make, or a model/year that keeps these in a different ECU.</p>';
+  }catch(e){ box.innerHTML=`<p class="news-note">${esc(e.message)}</p>` }
+}
+async function loadObdMode06(){
+  const box=$("#obd-m06"); box.innerHTML='<div class="skel"></div>';
+  try{ const d=await api("/api/obd/mode06");
+    const chip=$("#obd-m06-chip");
+    chip.textContent=d.tests.length?(d.failed?`${d.failed} failing`:"all passing"):"none reported";
+    chip.className="chip "+(d.tests.length?(d.failed?"rolled_back":"kept"):"");
+    box.innerHTML=d.tests.length?d.tests.map(t=>`<div class="kv"><span>${esc(t.name)} <small style="color:var(--muted)">test ${esc(t.tid)}·${esc(t.cid)}</small></span><code>${t.value} ${esc(t.unit)} <small>(limits ${t.min}–${t.max})</small> ${t.pass?"✓":"✗ FAIL"}</code></div>`).join("")
+      :'<p class="news-note">The car reported no on-board test results.</p>';
+  }catch(e){ box.innerHTML=`<p class="news-note">${esc(e.message)}</p>` }
+}
+async function loadObdInfo(){
+  const box=$("#obd-info"); box.innerHTML='<div class="skel"></div>';
+  try{ const d=await api("/api/obd/info");
+    const rows=[];
+    if(d.vin) rows.push(`<div class="kv"><span>VIN</span><code>${esc(d.vin)}</code></div>`);
+    (d.calid||[]).forEach((c,i)=>rows.push(`<div class="kv"><span>Calibration ID${d.calid.length>1?" "+(i+1):""}</span><code>${esc(c)}</code></div>`));
+    (d.cvn||[]).forEach((c,i)=>rows.push(`<div class="kv"><span>Calibration check (CVN)${d.cvn.length>1?" "+(i+1):""}</span><code>${esc(c)}</code></div>`));
+    (d.ecu||[]).forEach(e=>rows.push(`<div class="kv"><span>ECU ${esc(e.address)}</span><code>${esc(e.name)}</code></div>`));
+    box.innerHTML=rows.length?rows.join(""):'<p class="news-note">The car did not report any vehicle details.</p>';
+  }catch(e){ box.innerHTML=`<p class="news-note">${esc(e.message)}</p>` }
+}
 $("#obd-emis-btn").addEventListener("click",loadEmissions);
+$("#obd-scan-btn").addEventListener("click",loadObdScan);
+$("#obd-toyota-btn").addEventListener("click",loadObdToyota);
+$("#obd-m06-btn").addEventListener("click",loadObdMode06);
+$("#obd-info-btn").addEventListener("click",loadObdInfo);
 $("#obd-read").addEventListener("click",readObdCodes);
 $("#obd-clear").addEventListener("click",async()=>{
   if(!confirm("Clear all trouble codes and freeze-frame data? The light will come back if the fault is still present.")) return;

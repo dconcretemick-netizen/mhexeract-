@@ -3919,6 +3919,77 @@ _FUEL_TYPES = {1: "Gasoline", 2: "Methanol", 3: "Ethanol", 4: "Diesel", 5: "LPG"
                19: "Hybrid electric", 20: "Hybrid running electric", 21: "Bifuel running electric"}
 
 
+def _secondary_air_status(d: bytes) -> str:
+    """PID 0x12: where the commanded secondary air is going."""
+    return {0: "upstream of the first catalyst", 1: "downstream of the first catalyst",
+            2: "from the outside atmosphere (or off)"}.get(d[0] & 0x07, f"code {d[0] & 0x07}")
+
+
+def _o2_present(d: bytes, four_bank: bool) -> str:
+    """PIDs 0x13 / 0x1D: which oxygen sensor positions exist, as a readable list."""
+    names = (["B1S1", "B1S2", "B2S1", "B2S2", "B3S1", "B3S2", "B4S1", "B4S2"] if four_bank
+             else ["B1S1", "B1S2", "B1S3", "B1S4", "B2S1", "B2S2", "B2S3", "B2S4"])
+    got = [names[i] for i in range(8) if d[0] & (1 << i)]
+    return ", ".join(got) if got else "none reported"
+
+
+def _signed16(d: bytes) -> int:
+    v = d[0] * 256 + d[1]
+    return v - 65536 if v & 0x8000 else v
+
+
+def _monitors_not_run(b: int, c: int, dd: int) -> int:
+    """PID 0x01/0x41 layout: B = continuous support (bits 0-2) + not-run (bits 4-6),
+    C = non-continuous support, D = non-continuous not-run."""
+    n = sum(1 for i in range(3) if b & (1 << i) and b & (1 << (4 + i)))
+    n += sum(1 for i in range(8) if c & (1 << i) and dd & (1 << i))
+    return n
+
+
+def _monitors_this_trip(d: bytes) -> str:
+    """PID 0x41: monitor status for the current drive cycle (bytes are [reserved, B, C, D])."""
+    if len(d) < 4:
+        raise IndexError("short PID 41")
+    n = _monitors_not_run(d[1], d[2], d[3])
+    return "all monitors have run" if n == 0 else f"{n} monitor(s) not run yet"
+
+
+def _sensor_maximums(d: bytes) -> str:
+    """PID 0x4F: the ECU's maximum scale values for ratio / O2 voltage / current / MAP."""
+    return f"ratio {d[0]} · O2 {d[1]} V · {d[2]} mA · MAP {d[3] * 10} kPa"
+
+
+_EMISSION_REQS = {0: "OBD-II (California ARB)", 1: "OBD (US EPA)", 2: "OBD and OBD-II",
+                  3: "OBD-I", 4: "not intended for OBD", 5: "EOBD (Europe)",
+                  6: "EOBD and OBD-II", 7: "EOBD and OBD"}
+
+
+def _emission_requirements(d: bytes) -> str:
+    got = [_EMISSION_REQS[i] for i in range(8) if d[0] & (1 << i)]
+    return ", ".join(got) if got else f"code {d[0]}"
+
+
+def _masked_maf(d: bytes) -> float:
+    """PID 0x66: byte A is a support mask; sensor A follows as (256B+C)/32 g/s."""
+    if not d[0] & 0x01:
+        raise IndexError("MAF sensor A not present")
+    return (d[1] * 256 + d[2]) / 32
+
+
+def _masked_temp(d: bytes) -> int:
+    """PIDs 0x67/0x68: byte A is a support mask; sensor 1 follows as B-40."""
+    if not d[0] & 0x01:
+        raise IndexError("sensor 1 not present")
+    return d[1] - 40
+
+
+def _masked_pressure(d: bytes) -> int:
+    """PID 0x87: byte A is a support mask; sensor A follows as (256B+C) kPa."""
+    if not d[0] & 0x01:
+        raise IndexError("pressure sensor A not present")
+    return d[1] * 256 + d[2]
+
+
 # pid -> (label, unit, decode bytes -> value, byte count). Standard SAE J1979
 # Mode 01 formulas, cross-checked against the python-OBD project's decoders.
 OBD_PIDS = {
@@ -3937,6 +4008,8 @@ OBD_PIDS = {
     0x0F: ("Intake air temp", "°C", lambda d: d[0] - 40, 1),
     0x10: ("MAF air flow", "g/s", lambda d: (d[0] * 256 + d[1]) / 100, 2),
     0x11: ("Throttle", "%", lambda d: d[0] * 100 / 255, 1),
+    0x12: ("Secondary air", "", _secondary_air_status, 1),
+    0x13: ("O2 sensors present", "", lambda d: _o2_present(d, False), 1),
     0x14: ("O2 voltage B1S1", "V", lambda d: d[0] / 200, 2),
     0x15: ("O2 voltage B1S2", "V", lambda d: d[0] / 200, 2),
     0x16: ("O2 voltage B1S3", "V", lambda d: d[0] / 200, 2),
@@ -3946,10 +4019,20 @@ OBD_PIDS = {
     0x1A: ("O2 voltage B2S3", "V", lambda d: d[0] / 200, 2),
     0x1B: ("O2 voltage B2S4", "V", lambda d: d[0] / 200, 2),
     0x1C: ("OBD standard", "", lambda d: _OBD_STANDARDS.get(d[0], f"standard {d[0]}"), 1),
+    0x1D: ("O2 sensors present (4-bank)", "", lambda d: _o2_present(d, True), 1),
+    0x1E: ("Power take-off", "", lambda d: "on" if d[0] & 1 else "off", 1),
     0x1F: ("Run time", "s", lambda d: d[0] * 256 + d[1], 2),
     0x21: ("Distance with light on", "km", lambda d: d[0] * 256 + d[1], 2),
     0x22: ("Fuel rail pressure", "kPa", lambda d: (d[0] * 256 + d[1]) * 0.079, 2),
     0x23: ("Fuel rail pressure (gauge)", "kPa", lambda d: (d[0] * 256 + d[1]) * 10, 2),
+    0x24: ("Wideband O2 B1S1", "lambda", lambda d: (d[0] * 256 + d[1]) / 32768, 4),
+    0x25: ("Wideband O2 B1S2", "lambda", lambda d: (d[0] * 256 + d[1]) / 32768, 4),
+    0x26: ("Wideband O2 B1S3", "lambda", lambda d: (d[0] * 256 + d[1]) / 32768, 4),
+    0x27: ("Wideband O2 B1S4", "lambda", lambda d: (d[0] * 256 + d[1]) / 32768, 4),
+    0x28: ("Wideband O2 B2S1", "lambda", lambda d: (d[0] * 256 + d[1]) / 32768, 4),
+    0x29: ("Wideband O2 B2S2", "lambda", lambda d: (d[0] * 256 + d[1]) / 32768, 4),
+    0x2A: ("Wideband O2 B2S3", "lambda", lambda d: (d[0] * 256 + d[1]) / 32768, 4),
+    0x2B: ("Wideband O2 B2S4", "lambda", lambda d: (d[0] * 256 + d[1]) / 32768, 4),
     0x2C: ("Commanded EGR", "%", lambda d: d[0] * 100 / 255, 1),
     0x2D: ("EGR error", "%", lambda d: (d[0] - 128) * 100 / 128, 1),
     0x2E: ("Evap purge", "%", lambda d: d[0] * 100 / 255, 1),
@@ -3970,6 +4053,7 @@ OBD_PIDS = {
     0x3D: ("Catalyst temp B2S1", "°C", lambda d: (d[0] * 256 + d[1]) / 10 - 40, 2),
     0x3E: ("Catalyst temp B1S2", "°C", lambda d: (d[0] * 256 + d[1]) / 10 - 40, 2),
     0x3F: ("Catalyst temp B2S2", "°C", lambda d: (d[0] * 256 + d[1]) / 10 - 40, 2),
+    0x41: ("Monitors this trip", "", _monitors_this_trip, 4),
     0x42: ("Battery voltage", "V", lambda d: (d[0] * 256 + d[1]) / 1000, 2),
     0x43: ("Absolute load", "%", lambda d: (d[0] * 256 + d[1]) * 100 / 255, 2),
     0x44: ("Fuel-air ratio", "lambda", lambda d: (d[0] * 256 + d[1]) / 32768, 2),
@@ -3983,17 +4067,85 @@ OBD_PIDS = {
     0x4C: ("Throttle actuator", "%", lambda d: d[0] * 100 / 255, 1),
     0x4D: ("Time with light on", "min", lambda d: d[0] * 256 + d[1], 2),
     0x4E: ("Time since codes cleared", "min", lambda d: d[0] * 256 + d[1], 2),
+    0x4F: ("Sensor maximums", "", _sensor_maximums, 4),
+    0x50: ("Max MAF air flow", "g/s", lambda d: d[0] * 10, 4),
     0x51: ("Fuel type", "", lambda d: _FUEL_TYPES.get(d[0], f"type {d[0]}"), 1),
+    0x52: ("Ethanol fuel", "%", lambda d: d[0] * 100 / 255, 1),
+    0x53: ("Evap vapor pressure (abs)", "kPa", lambda d: (d[0] * 256 + d[1]) / 200, 2),
+    0x54: ("Evap vapor pressure", "Pa", _signed16, 2),
+    0x55: ("Secondary short trim B1", "%", lambda d: (d[0] - 128) * 100 / 128, 2),
+    0x56: ("Secondary long trim B1", "%", lambda d: (d[0] - 128) * 100 / 128, 2),
+    0x57: ("Secondary short trim B2", "%", lambda d: (d[0] - 128) * 100 / 128, 2),
+    0x58: ("Secondary long trim B2", "%", lambda d: (d[0] - 128) * 100 / 128, 2),
+    0x59: ("Fuel rail pressure (abs)", "kPa", lambda d: (d[0] * 256 + d[1]) * 10, 2),
     0x5A: ("Relative accelerator", "%", lambda d: d[0] * 100 / 255, 1),
     0x5B: ("Hybrid battery", "%", lambda d: d[0] * 100 / 255, 1),
     0x5C: ("Oil temp", "°C", lambda d: d[0] - 40, 1),
     0x5D: ("Fuel injection timing", "°", lambda d: (d[0] * 256 + d[1]) / 128 - 210, 2),
     0x5E: ("Engine fuel rate", "L/h", lambda d: (d[0] * 256 + d[1]) / 20, 2),
+    0x5F: ("Emission requirements", "", _emission_requirements, 1),
     0x61: ("Demand torque", "%", lambda d: d[0] - 125, 1),
     0x62: ("Engine torque", "%", lambda d: d[0] - 125, 1),
     0x63: ("Reference torque", "Nm", lambda d: d[0] * 256 + d[1], 2),
+    0x66: ("MAF air flow (sensor A)", "g/s", _masked_maf, 5),
+    0x67: ("Coolant temp (sensor 1)", "°C", _masked_temp, 3),
+    0x68: ("Intake air temp (sensor 1)", "°C", _masked_temp, 3),
+    0x7F: ("Total engine run time", "s", lambda d: int.from_bytes(d[1:5], "big"), 5),
+    0x83: ("NOx sensor 1", "ppm", lambda d: d[1] * 256 + d[2], 9),
+    0x87: ("Intake pressure (sensor A)", "kPa", _masked_pressure, 5),
+    0x8D: ("Throttle position G", "%", lambda d: d[0] * 100 / 255, 1),
+    0x8E: ("Engine friction", "%", lambda d: d[0] - 125, 1),
+    0x9B: ("DEF level", "%", lambda d: d[3] * 100 / 255, 4),
+    0xA2: ("Cylinder fuel rate", "mg/stroke", lambda d: (d[0] * 256 + d[1]) / 32, 2),
+    0xA4: ("Transmission gear ratio", "", lambda d: (d[2] * 256 + d[3]) / 1000, 4),
+    0xA5: ("DEF dosing", "%", lambda d: d[1] / 2, 4),
+    0xA6: ("Odometer", "km", lambda d: int.from_bytes(d[0:4], "big") / 10, 4),
 }
 OBD_LIVE_PIDS = [0x0C, 0x0D, 0x05, 0x42, 0x04, 0x11, 0x2F, 0x10, 0x0F, 0x06, 0x07, 0x1F, 0x14, 0x5C]
+
+
+def _atf_c(a: int, b: int) -> float:
+    """Toyota automatic-transmission fluid temperature: the community-documented
+    formula is in °F — ((((A*256+B) * 0.07) - 400) / 10) — converted here to °C."""
+    return ((((a * 256 + b) * 0.07) - 400) / 10 - 32) * 5 / 9
+
+
+# Toyota's enhanced diagnostics live on service 0x21 (SAE J2190; Torque lists
+# them as "21xx"). The transmission-fluid temperatures are the widely documented
+# ones — the same values Techstream shows as A/T oil temp 1 (pan) and 2
+# (converter outlet). Which variant a car answers depends on model and year, so
+# the scan tries each and keeps whatever answers; on some cars the transmission
+# ECU (header 7E1) holds them instead of the engine ECU, which the scan also
+# tries. Decoders receive the data bytes after the 0x61 + PID echo.
+TOYOTA_PIDS = [
+    {"pid": 0x82, "name": "Trans fluid temp (pan)", "unit": "°C", "ecu": "trans",
+     "fn": lambda d: _atf_c(d[0], d[1])},
+    {"pid": 0x82, "name": "Trans fluid temp (converter)", "unit": "°C", "ecu": "trans",
+     "fn": lambda d: _atf_c(d[2], d[3])},
+    {"pid": 0xD9, "name": "Trans fluid temp (pan, older)", "unit": "°C", "ecu": "trans",
+     "fn": lambda d: _atf_c(d[4], d[5])},
+    {"pid": 0xD9, "name": "Trans fluid temp (converter, older)", "unit": "°C", "ecu": "trans",
+     "fn": lambda d: _atf_c(d[6], d[7])},
+    {"pid": 0xB4, "name": "Trans fluid temp (early)", "unit": "°C", "ecu": "trans",
+     "fn": lambda d: (d[0] * 9 / 5 - 38 - 32) * 5 / 9},
+]
+
+# Mode 06 on-board monitoring: test ids with community-known names, and the
+# SAE J1979 unit-and-scaling ids whose conversions are well established.
+# Pass/fail is judged on the raw values (value and limits share one scale),
+# so it is right even for scalings not in the map — those display as raw counts.
+MODE6_NAMES = {0x01: "Oxygen sensor B1S1", 0x02: "Oxygen sensor B1S2",
+               0x05: "Oxygen sensor B2S1", 0x06: "Oxygen sensor B2S2",
+               0x21: "Catalyst B1", 0x22: "Catalyst B2",
+               0x31: "EGR B1", 0x32: "EGR B2",
+               0x39: "EVAP purge flow", 0x3A: "EVAP (0.040 in leak)", 0x3B: "EVAP (0.020 in leak)",
+               0x41: "Oxygen sensor heater B1S1", 0x42: "Oxygen sensor heater B1S2",
+               0x45: "Oxygen sensor heater B2S1", 0x46: "Oxygen sensor heater B2S2",
+               0x61: "Misfire counts (general)", 0xA1: "Misfire cylinder 1", 0xA2: "Misfire cylinder 2",
+               0xA3: "Misfire cylinder 3", 0xA4: "Misfire cylinder 4", 0xA5: "Misfire cylinder 5",
+               0xA6: "Misfire cylinder 6", 0xA7: "Misfire cylinder 7", 0xA8: "Misfire cylinder 8"}
+MODE6_SCALE = {0x01: (2 / 65536, 0, "lambda"), 0x02: (8 / 65536, 0, "V"),
+               0x0A: (100 / 65535, 0, "%"), 0x0C: (0.1, -40, "°C"), 0x24: (0.25, 0, "rpm")}
 
 # Trouble-code descriptions come from the open-source dtc-database project by
 # Wal33D (MIT License, Copyright (c) 2024 Wal33D):
@@ -4366,10 +4518,21 @@ class _DemoTransport:
             0x10: (lambda v: bytes([int(v) >> 8, int(v) & 0xFF]))((4 + rpm / 700) * 100),
             0x11: bytes([int(22 + 16 * math.sin(t / 17)) * 255 // 100]),
             0x1F: (lambda v: bytes([int(v) >> 8, int(v) & 0xFF]))(min(65535, int(t) + 640)),
+            0x24: bytes([0x80, 0x00, 0x0E, 0x66]),
             0x2F: bytes([63 * 255 // 100]),
             0x33: bytes([101]),
+            0x41: bytes([0x00, 0x07, 0xEF, 0x04]),
             0x42: (lambda v: bytes([int(v) >> 8, int(v) & 0xFF]))(13800 + int(300 * math.sin(t / 11))),
             0x46: bytes([24 + 40]),
+            0x52: bytes([0]),
+            0x67: bytes([0x01, 92 + 40]),
+            0x68: bytes([0x01, 24 + 40]),
+            0x7F: bytes([0x01]) + (2400000).to_bytes(4, "big"),
+            0x87: bytes([0x01, 0x00, 0x26]),
+            0x8D: bytes([56]),
+            0x8E: bytes([133]),
+            0xA4: bytes([0x02, 0x00, 0x02, 0xEE]),
+            0xA6: (1874325).to_bytes(4, "big"),
         }
 
     def exchange(self, cmd: str, timeout: float = 5.0) -> str:
@@ -4385,9 +4548,36 @@ class _DemoTransport:
         if c == "0100":
             return "4100BE1FA813"
         if c == "0120":
-            return "412080022001"
+            return "412090022001"
         if c == "0140":
-            return "414040084000"
+            return "414040084001"
+        if c == "0160":
+            return "416003000003"
+        if c == "0180":
+            return "4180020C0001"
+        if c == "01A0":
+            return "41A014000000"
+        if c == "0600":
+            return "460080000001"
+        if c == "0620":
+            return "462080000000"
+        if c == "0601":
+            return "460101020E66099A1333"
+        if c == "0621":
+            return "4621010168F600008000"
+        if c == "0904":
+            calid = "MHEX DEMO CAL 01"
+            return "\r".join(f"4904{i // 4 + 1:02X}" + calid[i:i + 4].encode().hex().upper()
+                             for i in range(0, len(calid), 4))
+        if c == "0906":
+            return "4906011A2B3C4D"
+        if c == "090A":
+            name = "Engine ECU".ljust(20, "\x00").encode().hex().upper()
+            return f"490A0101{name}"
+        if c == "2182":
+            return "61827A8B8092"  # trans fluid: pan ~82 °C, converter ~88 °C
+        if c in ("21D9", "21B4"):
+            return "NO DATA"  # the demo car is a newer Toyota: only 2182 answers
         sim = self._sim()
         if re.fullmatch(r"01[0-9A-F]{2}", c):
             pid = int(c[2:4], 16)
@@ -4523,7 +4713,7 @@ class ObdSession:
 
     def _read_supported(self) -> set:
         supported = set()
-        for base in (0x00, 0x20, 0x40):
+        for base in (0x00, 0x20, 0x40, 0x60, 0x80, 0xA0):
             f = self._frame_for(self._cmd(f"01{base:02X}", 5), 0x41, base)
             if not f or len(f) < 6:
                 break
@@ -4667,6 +4857,146 @@ class ObdSession:
             return {"mil_on": mil, "dtc_count": count, "monitors": monitors,
                     "stored": stored, "pending": pending, "permanent": permanent,
                     "verdict": verdict, "headline": headline, "detail": detail}
+
+    def scan_all(self) -> dict:
+        """Every Mode 01 sensor this car supports, read once — the full list,
+        not just the live gauges."""
+        if self.transport is None:
+            raise ObdError("not connected")
+        with self.lock:
+            values = []
+            for pid in sorted(OBD_PIDS):
+                if self.supported and pid not in self.supported:
+                    continue
+                got = self.read_value(pid)
+                if got:
+                    values.append(got)
+            return {"values": values, "count": len(values),
+                    "supported": len(self.supported & set(OBD_PIDS))}
+
+    def monitoring(self) -> dict:
+        """Mode 06 on-board monitoring results: the car's own component tests
+        (catalyst, oxygen sensors, EGR, EVAP, misfire counts) with the limits
+        each result is judged against."""
+        if self.transport is None:
+            raise ObdError("not connected")
+        with self.lock:
+            tids = set()
+            for base in (0x00, 0x20, 0x40, 0x60, 0x80, 0xA0):
+                f = self._frame_for(self._cmd(f"06{base:02X}", 5), 0x46, base)
+                if not f or len(f) < 6:
+                    break
+                bits = int.from_bytes(f[2:6], "big")
+                for i in range(32):
+                    if bits & (1 << (31 - i)):
+                        tids.add(base + i + 1)
+                if base + 0x20 not in tids:
+                    break
+            tests = []
+            for tid in sorted(tids):
+                raw = self._cmd(f"06{tid:02X}", 5)
+                for f in _hex_frames(raw):
+                    if len(f) < 10 or f[0] != 0x46 or f[1] != tid:
+                        continue
+                    cid, uasid = f[2], f[3]
+                    val = int.from_bytes(f[4:6], "big")
+                    lo = int.from_bytes(f[6:8], "big")
+                    hi = int.from_bytes(f[8:10], "big")
+                    factor, offset, unit = MODE6_SCALE.get(uasid, (1.0, 0, "raw"))
+                    tests.append({"tid": f"{tid:02X}", "cid": f"{cid:02X}",
+                                  "name": MODE6_NAMES.get(tid, f"Test {tid:02X}"),
+                                  "value": round(val * factor + offset, 3),
+                                  "min": round(lo * factor + offset, 3),
+                                  "max": round(hi * factor + offset, 3),
+                                  "unit": unit, "pass": lo <= val <= hi})
+            tests.sort(key=lambda t: (t["pass"], t["name"]))
+            return {"tests": tests,
+                    "failed": sum(1 for t in tests if not t["pass"])}
+
+    def vehicle_info(self) -> dict:
+        """Mode 09: VIN plus the ECU calibration ids (CALID), calibration
+        verification numbers (CVN) and ECU names — what a dealer tool shows
+        on its vehicle-info screen."""
+        if self.transport is None:
+            raise ObdError("not connected")
+        with self.lock:
+            out = {"vin": self.vin or self._read_vin(), "calid": [], "cvn": [], "ecu": []}
+
+            def collect(pid: int) -> dict:
+                parts = {}
+                for f in _hex_frames(self._cmd(f"09{pid:02X}", 6)):
+                    if len(f) >= 3 and f[0] == 0x49 and f[1] == pid:
+                        parts[f[2]] = f[3:]
+                return parts
+
+            parts = collect(0x04)
+            blob = b"".join(parts[k] for k in sorted(parts))
+            for i in range(0, len(blob) - 3, 16):
+                s = "".join(chr(b) for b in blob[i:i + 16] if 32 <= b < 127).strip("\x00 ")
+                if s:
+                    out["calid"].append(s)
+            parts = collect(0x06)
+            blob = b"".join(parts[k] for k in sorted(parts))
+            for i in range(0, len(blob) - 3, 4):
+                out["cvn"].append(blob[i:i + 4].hex().upper())
+            parts = collect(0x0A)
+            for k in sorted(parts):
+                body = parts[k]
+                if len(body) < 2:
+                    continue
+                name = "".join(chr(b) for b in body[1:] if 32 <= b < 127).strip("\x00 ")
+                if name:
+                    out["ecu"].append({"address": f"{body[0]:02X}", "name": name})
+            return out
+
+    def _read_toyota(self, pid: int, trans_ecu: bool) -> Optional[bytes]:
+        raw = self._cmd(f"21{pid:02X}", 5)
+        f = self._frame_for(raw, 0x61, pid)
+        if f is not None:
+            return f[2:]
+        if not trans_ecu or self.kind == "demo":
+            return None
+        # Some Toyotas keep the transmission data in the transmission ECU
+        # (CAN header 7E1) instead of the engine ECU — ask it directly, then
+        # restore the default functional header (7DF) for everything else.
+        try:
+            self._cmd("ATSH7E1", 2)
+            raw = self._cmd(f"21{pid:02X}", 5)
+            f = self._frame_for(raw, 0x61, pid)
+            return f[2:] if f is not None else None
+        except Exception:  # noqa: BLE001
+            return None
+        finally:
+            try:
+                self._cmd("ATSH7DF", 2)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def toyota_scan(self) -> dict:
+        """Toyota enhanced data (service 0x21): transmission fluid temperatures
+        the standard PIDs don't expose. Only the variants this car answers are
+        returned — which ones exist depends on model and year."""
+        if self.transport is None:
+            raise ObdError("not connected")
+        with self.lock:
+            by_pid: dict = {}
+            for e in TOYOTA_PIDS:
+                by_pid.setdefault(e["pid"], []).append(e)
+            values = []
+            for pid in sorted(by_pid):
+                entries = by_pid[pid]
+                data = self._read_toyota(pid, any(e["ecu"] == "trans" for e in entries))
+                if data is None:
+                    continue
+                for e in entries:
+                    try:
+                        v = e["fn"](data)
+                    except (IndexError, ZeroDivisionError):
+                        continue
+                    values.append({"pid": f"21{pid:02X}", "name": e["name"],
+                                   "value": round(v, 1) if isinstance(v, float) else v,
+                                   "unit": e["unit"]})
+            return {"values": values, "count": len(values)}
 
     def _read_vin(self) -> str:
         try:
@@ -4852,6 +5182,26 @@ def serve_gui(gw: "Gateway", host: str = "127.0.0.1", port: int = 8765, token: O
             if u.path == "/api/obd/emissions":
                 try:
                     return self._send(200, obd_session().emissions())
+                except ObdError as e:
+                    return self._send(400, {"error": str(e)})
+            if u.path == "/api/obd/scan":
+                try:
+                    return self._send(200, obd_session().scan_all())
+                except ObdError as e:
+                    return self._send(400, {"error": str(e)})
+            if u.path == "/api/obd/mode06":
+                try:
+                    return self._send(200, obd_session().monitoring())
+                except ObdError as e:
+                    return self._send(400, {"error": str(e)})
+            if u.path == "/api/obd/info":
+                try:
+                    return self._send(200, obd_session().vehicle_info())
+                except ObdError as e:
+                    return self._send(400, {"error": str(e)})
+            if u.path == "/api/obd/toyota":
+                try:
+                    return self._send(200, obd_session().toyota_scan())
                 except ObdError as e:
                     return self._send(400, {"error": str(e)})
             if u.path == "/api/keys":
