@@ -841,6 +841,15 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
 </main>
 
 <div class="toast" id="toast" role="status"></div>
+<div id="uic" style="position:fixed;inset:0;background:rgba(5,8,10,.7);z-index:99;display:none;align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--panel,#151c21);border:1px solid var(--line,#24303a);border-radius:16px;padding:20px;max-width:340px;width:92vw;text-align:center">
+    <p id="uic-msg" style="margin:0 0 16px"></p>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn" id="uic-no">Cancel</button>
+      <button class="btn" id="uic-yes" style="background:var(--accent,#14b8a6);color:#04201d;font-weight:800">OK</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const STATIC = window.__REPORT__ || null;
@@ -851,6 +860,11 @@ const pct = v => v == null ? "–" : (v * 100).toFixed(1) + "%";
 let R = null, lastReq = null;
 
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),2600)}
+/* In-page confirm: the native confirm() is unreliable inside the app WebView, so every
+   "are you sure?" in the dashboard goes through this overlay instead. */
+function uiConfirm(msg){ return new Promise(res=>{ const o=$("#uic"); $("#uic-msg").textContent=msg; o.style.display="flex";
+  const done=v=>{ o.style.display="none"; $("#uic-yes").onclick=$("#uic-no").onclick=o.onclick=null; res(v) };
+  $("#uic-yes").onclick=()=>done(true); $("#uic-no").onclick=()=>done(false); o.onclick=e=>{ if(e.target===o) done(false) } }) }
 async function api(path, opts){
   const r = await fetch(path, opts); const j = await r.json().catch(()=>({error:r.statusText}));
   if(!r.ok || j.error) throw new Error(j.error || r.statusText); return j;
@@ -1196,7 +1210,7 @@ $("#upd-apply").addEventListener("click",async()=>{
 });
 $("#upd-check").addEventListener("click",()=>loadUpdate(true));
 $("#upd-rollback").addEventListener("click",async()=>{
-  if(!confirm("Restore the version from before the last update?")) return;
+  if(!(await uiConfirm("Restore the version from before the last update?"))) return;
   try{ const r=await api("/api/update/rollback",{method:"POST"}); toast(`Restored ${r.restored.length} files. Restarting`); await waitForRestart() }catch(e){ toast(e.message) }
 });
 if(!STATIC) setTimeout(()=>api("/api/update").then(u=>{ UPD=u; $("#upd-dot").hidden=!u.available }).catch(()=>{}),2500);
@@ -1419,14 +1433,14 @@ $("#btn-save-keys").addEventListener("click",()=>{
   const n=Object.keys(updates).length;
   saveKeys(updates, `Saved ${n} key${n===1?"":"s"}. They take effect right away.`);
 });
-$("#btn-clear-keys").addEventListener("click",()=>{
+$("#btn-clear-keys").addEventListener("click",async ()=>{
   if(!KEYS||!KEYS.saved) return toast("No keys saved");
-  if(!confirm("Remove all saved AI keys? MHexeract will go back to demo mode until you add one again.")) return;
+  if(!(await uiConfirm("Remove all saved AI keys? MHexeract will go back to demo mode until you add one again."))) return;
   saveKeys(Object.fromEntries(KEYS.keys.map(k=>[k.env,""])), "All keys removed.");
 });
-$("#keys-list").addEventListener("click",e=>{
+$("#keys-list").addEventListener("click",async e=>{
   const b=e.target.closest("[data-remove-key]"); if(!b) return;
-  if(!confirm("Remove this saved key?")) return;
+  if(!(await uiConfirm("Remove this saved key?"))) return;
   saveKeys({[b.dataset.removeKey]:""}, "Key removed.");
 });
 const fmtDur=s=>{ if(s==null) return "\u2013"; s=Math.round(s); const h=Math.floor(s/3600), m=Math.floor(s%3600/60);
@@ -1512,7 +1526,7 @@ $("#tb-run-strive").addEventListener("click",()=>toolboxRun("strive","Striving t
 $("#tb-run-picker").addEventListener("click",()=>toolboxRun("picker","Picking what's grown"));
 $("#tb-run-ui").addEventListener("click",()=>toolboxRun("ui","Checking UI"));
 $("#tb-close").addEventListener("click",async()=>{
-  if(!confirm("Shut MHexeract down completely? The gateway stops, and on Android the app closes too. Your keys and settings stay saved — just open MHexeract again to restart.")) return;
+  if(!(await uiConfirm("Shut MHexeract down completely? The gateway stops, and on Android the app closes too. Your keys and settings stay saved — just open MHexeract again to restart."))) return;
   let android=!!(TB&&TB.android);
   try{ const r=await api("/api/toolbox",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"shutdown"})}); if(r&&r.android) android=true; }catch(e){}
   $("#off-screen").hidden=false;
@@ -1522,7 +1536,7 @@ $("#tb-compact").addEventListener("click",async()=>{
   try{ await api("/api/compact",{method:"POST"}); toast("Storage compacted"); $("#tb-msg").textContent="Storage compacted." }catch(e){ toast(e.message) }
 });
 $("#tb-restart").addEventListener("click",async()=>{
-  if(!confirm("Restart the MHexeract gateway? It comes back in a few seconds.")) return;
+  if(!(await uiConfirm("Restart the MHexeract gateway? It comes back in a few seconds."))) return;
   try{ await api("/api/toolbox",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"restart"})}) }catch(e){}
   toast("Restarting\u2026"); await waitForRestart();
 });
@@ -1697,7 +1711,7 @@ $("#obd-m06-btn").addEventListener("click",loadObdMode06);
 $("#obd-info-btn").addEventListener("click",loadObdInfo);
 $("#obd-read").addEventListener("click",readObdCodes);
 $("#obd-clear").addEventListener("click",async()=>{
-  if(!confirm("Clear all trouble codes and freeze-frame data? The light will come back if the fault is still present.")) return;
+  if(!(await uiConfirm("Clear all trouble codes and freeze-frame data? The light will come back if the fault is still present."))) return;
   try{ await api("/api/obd/clear",{method:"POST"}); toast("Codes cleared"); readObdCodes() }catch(e){ toast(e.message) }
 });
 syncObdFields();
@@ -1733,7 +1747,7 @@ function renderUnits(){
 async function loadUnits(){ if(STATIC) return; try{ UNITS=await api("/api/units"); renderUnits() }catch(e){ $("#units-count").textContent="AI" } }
 $("#free-only").addEventListener("change", async e=>{
   const allow=!e.target.checked;
-  if(allow && !confirm("Allow paid AI? Providers such as OpenAI or DeepSeek may then charge your account.")){ e.target.checked=true; return }
+  if(allow && !(await uiConfirm("Allow paid AI? Providers such as OpenAI or DeepSeek may then charge your account."))){ e.target.checked=true; return }
   try{ UNITS=await api("/api/cost",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({allow_paid:allow})}); renderUnits(); toast(allow?"Paid AI allowed":"Free AI only") }catch(err){ toast(err.message); e.target.checked=!allow } });
 $("#btn-units").addEventListener("click",()=>{ const box=$("#units-info"); box.hidden=!box.hidden; $("#btn-units").setAttribute("aria-expanded",String(!box.hidden)); if(!box.hidden) loadUnits() });
 loadUnits();

@@ -18,6 +18,7 @@ import android.text.InputType;
 import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -96,6 +97,7 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
+        web.setWebChromeClient(new WebChromeClient());   // without this, JS confirm()/alert() silently fail in the WebView
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {

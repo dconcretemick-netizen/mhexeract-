@@ -13,16 +13,16 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px/
 #app{position:fixed;inset:0;display:flex;flex-direction:column}
 #stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#000}
 canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
-#pad{position:relative;flex:none;height:150px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:center;background:var(--bg)}
+#pad{position:relative;flex:none;height:178px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:center;background:var(--bg)}
 #app:not(.land) #stage{align-items:flex-end}
 #hint{position:absolute;left:12px;top:calc(14px + env(safe-area-inset-top));right:110px;font-size:13px;color:rgba(255,255,255,.85);text-shadow:0 1px 2px rgba(0,0,0,.5)}
 #app.land #hint{display:none}
 #app.land #pad{position:absolute;left:0;right:0;bottom:0;background:none;pointer-events:none;height:auto;padding:0 calc(18px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left))}
-.grp{display:flex;gap:12px;align-items:center}
-.b{pointer-events:auto;width:76px;height:76px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.22);color:#fff;display:grid;place-items:center;font-weight:800;font-size:22px;touch-action:none}
+.grp{display:flex;gap:14px;align-items:center}
+.b{pointer-events:auto;width:94px;height:94px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.22);color:#fff;display:grid;place-items:center;font-weight:800;font-size:26px;touch-action:none}
 .b.on{background:rgba(20,184,166,.45);border-color:#14b8a6}
-.b.jump{width:92px;height:92px;background:rgba(20,184,166,.28);border-color:rgba(20,184,166,.7)}
-.b.small{width:62px;height:62px;font-size:15px}
+.b.jump{width:112px;height:112px;background:rgba(20,184,166,.28);border-color:rgba(20,184,166,.7)}
+.b.small{width:78px;height:78px;font-size:17px}
 #app.land .b{background:rgba(0,0,0,.25)}
 #top{position:absolute;top:calc(6px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right));display:flex;gap:6px;z-index:3}
 #top button{width:40px;height:40px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.35);color:#fff;font-weight:800;cursor:pointer}
@@ -53,7 +53,7 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
       <div class="lv" id="lv"></div>
       <button class="go" id="go">Play</button>
       <div class="opt"><label><input type="checkbox" id="autorun"> Always run</label></div>
-      <div class="keys">Keyboard: arrows or A/D move, Space or W jump, Shift or X run, P pause</div>
+      <div class="keys">Keyboard: arrows or A/D move, Space or W jump (hold in the air to fly), Shift or X run, P pause</div>
     </div></div>
   </div>
   <div id="pad">
@@ -86,36 +86,36 @@ function makeLevel(n){
     ground(0,70); ground(73,122); ground(126,199);
     row(14,8,"?"); row(19,8,"B?BPB"); row(21,4,"?"); coins(30,9,3);
     stump(27,2); stump(37,3); stump(46,4); stump(56,4);
-    e("beetle",24); e("beetle",33); e("beetle",42); e("beetle",51); e("beetle",53);
+    e("beetle",24); e("turtle",33); e("beetle",42); e("turtle",51); e("beetle",53);
     row(66,8,"BPB"); row(69,4,"BBBBBBBB"); coins(70,3,6); row(80,4,"BBB?"); row(83,8,"B");
-    e("beetle",76); e("beetle",78); e("beetle",90); row(92,8,"BB"); row(98,8,"?"); row(101,8,"?"); row(101,4,"P"); row(104,8,"?");
-    e("beetle",100); e("beetle",102); set(96,11,"C");
+    e("beetle",76); e("turtle",78); e("beetle",90); row(92,8,"BB"); row(98,8,"?"); row(101,8,"?"); row(101,4,"P"); row(104,8,"?");
+    e("beetle",100); e("turtle",102); set(96,11,"C");
     row(110,8,"B"); row(112,4,"BBB"); e("beetle",115); row(118,4,"B??B"); row(119,8,"BB");
     stairs(130,4); stairs(137,4,-1); stairs(143,4); for(let y=8;y<12;y++) set(147,y,"S"); stairs(152,4,-1);
-    coins(134,6,3); e("beetle",157); e("beetle",159); row(160,8,"BB?B"); stump(166,2); e("beetle",170);
+    coins(134,6,3); e("beetle",157); e("turtle",159); row(160,8,"BB?B"); stump(166,2); e("beetle",170);
     stairs(176,8); for(let y=4;y<12;y++) set(184,y,"S"); flag=193;
   } else if(n===1){
     for(let x=0;x<W;x++){ set(x,0,"S"); if(x>8&&x<W-12) set(x,1,"B") }
     ground(0,41); ground(44,91); ground(94,142); ground(145,214);
-    row(10,8,"?P?"); e("beetle",16); e("beetle",18); row(22,7,"BBBBB"); coins(22,6,5); stump(30,3); e("beetle",34);
-    row(41,8,"SSSS"); coins(42,7,2); e("beetle",50); e("beetle",52); row(55,8,"B?B"); row(55,4,"BBBBBB");
+    row(10,8,"?P?"); e("beetle",16); e("turtle",18); row(22,7,"BBBBB"); coins(22,6,5); stump(30,3); e("beetle",34);
+    row(41,8,"SSSS"); coins(42,7,2); e("beetle",50); e("turtle",52); row(55,8,"BPB"); row(55,4,"BBBBBB");
     for(let x=60;x<66;x++) set(x,11,"^"); row(59,8,"SSSSSSSS"); coins(60,7,6);
-    e("beetle",70); stump(74,4); stump(80,2); e("beetle",84); set(78,11,"C");
-    row(88,8,"SSSSSSSSS"); coins(89,7,4); row(98,7,"B?B?B"); e("beetle",102); e("beetle",105); e("beetle",110);
+    e("beetle",70); stump(74,4); stump(80,2); e("turtle",84); set(78,11,"C");
+    row(88,8,"SSSSSSSSS"); coins(89,7,4); row(98,7,"B?B?B"); e("beetle",102); e("beetle",105); e("turtle",110);
     stairs(114,5); row(120,6,"SSSS"); stairs(126,5,-1); coins(120,5,4);
     for(let x=130;x<135;x++) set(x,11,"^"); row(129,8,"SSSSSSS");
-    row(142,8,"SSSSSS"); e("beetle",150); e("beetle",152); e("beetle",154); row(156,8,"BPB"); stump(162,3);
+    row(142,8,"SSSSSS"); e("beetle",150); e("turtle",152); e("beetle",154); row(156,8,"BPB"); stump(162,3);
     e("beetle",168); row(172,7,"BBBBBB"); coins(172,6,6); stairs(186,8); for(let y=4;y<12;y++) set(194,y,"S"); flag=204;
   } else {
     const isl=(a,b,top=12)=>ground(a,b,top);
     isl(0,22); isl(27,40); isl(45,52,10); isl(57,70); isl(76,82,9); isl(87,104); isl(110,114,10); isl(119,130);
     isl(136,140,9); isl(145,160); isl(166,170,10); isl(175,229);
-    row(10,8,"?P?"); e("beetle",16); row(23,8,"KKK"); coins(23,7,3); e("beetle",32); e("beetle",36);
-    row(41,9,"KKK"); coins(46,8,3); row(53,7,"KKK"); e("beetle",62); e("beetle",64); row(66,8,"B?B");
-    row(71,8,"KKKK"); row(83,6,"KKK"); coins(83,5,3); set(92,11,"C"); e("beetle",96); e("beetle",100); row(98,7,"?PB");
-    row(105,8,"KKK"); row(115,7,"KKK"); coins(115,6,3); e("beetle",124); e("beetle",126); row(131,7,"KKKK");
+    row(10,8,"?P?"); e("beetle",16); row(23,8,"KKK"); coins(23,7,3); e("beetle",32); e("turtle",36);
+    row(41,9,"KKK"); coins(46,8,3); row(53,7,"KKK"); e("beetle",62); e("turtle",64); row(66,8,"B?B");
+    row(71,8,"KKKK"); row(83,6,"KKK"); coins(83,5,3); set(92,11,"C"); e("beetle",96); e("turtle",100); row(98,7,"?PB");
+    row(105,8,"KKK"); row(115,7,"KKK"); coins(115,6,3); e("beetle",124); e("turtle",126); row(131,7,"KKKK");
     row(141,6,"KKK"); coins(141,5,3); e("beetle",150); e("beetle",154); row(152,8,"BB?BB"); row(161,8,"KKKK");
-    row(171,7,"KKK"); e("beetle",180); e("beetle",182); e("beetle",188); stairs(195,8); for(let y=4;y<12;y++) set(203,y,"S"); flag=213;
+    row(171,7,"KKK"); e("beetle",180); e("turtle",182); e("beetle",188); stairs(195,8); for(let y=4;y<12;y++) set(203,y,"S"); flag=213;
   }
   for(let y=2;y<12;y++) set(flag,y,"F"); set(flag,12,"#"); set(flag,11,"S");
   return {g,W,H,ents,flag,theme:THEMES[n]};
@@ -127,6 +127,7 @@ let VW=20, L, P, ents, parts, pops, cam=0, lvIndex=0, lives=3, score=0, gems=0, 
 let unlocked=+localStorage.getItem("pip.unlocked")||0, bestScore=+localStorage.getItem("pip.best")||0;
 let muted=localStorage.getItem("pip.mute")==="1";
 const input={left:false,right:false,jump:false,run:false}; let jumpPressed=0, autorun=localStorage.getItem("pip.autorun")==="1";
+const FLY_MAX=160;   // flight fuel in frames (~2.7 s of thrust); refills while standing on the ground
 document.getElementById("autorun").checked=autorun;
 
 function startLevel(i,keepCp){
@@ -134,7 +135,7 @@ function startLevel(i,keepCp){
   ents=L.ents.map(e=>({...e,vx:e.type==="hedge"?-0.45:-0.6,vy:0,w:14,h:14,alive:true,dead:0}));
   const sx=keepCp&&checkpoint?checkpoint.x:2*T;
   if(!keepCp) checkpoint=null;
-  P={x:sx,y:11*T-2,w:11,h:14,vx:0,vy:0,big:false,face:1,ground:false,coyote:0,buffer:0,inv:0,anim:0};
+  P={x:sx,y:11*T-2,w:11,h:14,vx:0,vy:0,big:false,fly:false,fuel:0,face:1,ground:false,coyote:0,buffer:0,inv:0,anim:0};
   if(keepCp&&checkpoint){ for(const e of ents) if(e.x<checkpoint.x+4*T) e.alive=false;
     L.g.forEach(r=>r.forEach((c,x)=>{ if(c==="C"&&x*T<=checkpoint.x) r[x]="c" })) }
   cam=Math.max(0,P.x-VW*T/3); state="play";
@@ -184,7 +185,7 @@ function bump(tx,ty){
 function lifeCheck(){ if(gems>=50){ gems-=50; lives++; SFX.flag() } }
 function kill(e,flip){ e.dead=1; e.flip=!!flip; e.vy=flip?-3.5:0; score+=200; pops.push({score:200,x:e.x,y:e.y,t:0}) }
 function reachFlag(ty){ state="clear"; clearT=0; P.vx=0; P.vy=0; P.x=L.flag*T-6; score+=Math.max(100,(12-Math.max(2,ty))*400); SFX.flag(); buzz(40) }
-function hurt(){ if(P.inv>0||state!=="play") return; if(P.big){ P.big=false; P.y+=12; P.h=14; P.inv=100; SFX.hurt(); buzz(60) } else die() }
+function hurt(){ if(P.inv>0||state!=="play") return; if(P.fly){ P.fly=false; P.fuel=0; P.inv=100; SFX.hurt(); buzz(60) } else if(P.big){ P.big=false; P.y+=12; P.h=14; P.inv=100; SFX.hurt(); buzz(60) } else die() }
 function die(){ if(state!=="play") return; state="dying"; deadT=0; P.vy=-6; SFX.die(); buzz([80,60,80]) }
 
 function update(){
@@ -199,8 +200,11 @@ function update(){
   if(jumpPressed){ P.buffer=8; jumpPressed=0 } else if(P.buffer>0) P.buffer--;
   P.coyote=P.ground?7:Math.max(0,P.coyote-1);
   if(P.buffer>0&&P.coyote>0){ P.vy=-(7.3+Math.abs(P.vx)*.28); P.buffer=0; P.coyote=0; P.ground=false; SFX.jump() }
-  if(!input.jump&&P.vy<-2.6) P.vy=-2.6;                 // short hop when jump is released early
-  P.vy=Math.min(P.vy+(input.jump&&P.vy<0?.36:.55),8.5);
+  const flying=P.fly&&!P.ground&&input.jump&&P.fuel>0;   // flight power-up: hold jump in the air to fly
+  if(flying){ P.vy=Math.max(P.vy-.85,-3.1); P.fuel-- }
+  else { if(!input.jump&&P.vy<-2.6) P.vy=-2.6;           // short hop when jump is released early
+    P.vy=Math.min(P.vy+(input.jump&&P.vy<0?.36:.55),8.5) }
+  if(P.ground&&P.fly) P.fuel=Math.min(FLY_MAX,P.fuel+5);
   moveX(P,true); moveY(P,true); if(P.inv>0) P.inv--; P.anim+=Math.abs(P.vx)*.25;
   if(P.y>L.H*T+16) return die();
   // tiles the player overlaps: gems, spikes, checkpoint, goal
@@ -216,16 +220,26 @@ function update(){
     if(e.x>cam+VW*T+48||e.x<cam-96){ if(e.type!=="berry") continue }
     if(e.dead){ if(e.flip){ e.vy+=.4; e.y+=e.vy; if(e.y>L.H*T+20) e.alive=false } else if(++e.dead>30) e.alive=false; continue }
     if(e.type==="berry"){ if(e.rise>0){ e.y-=.5; e.rise-=.5; if(e.rise<=0) e.vx=1.1; } else { e.vy=Math.min(e.vy+.4,7); moveX(e); moveY(e) } }
+    else if(e.type==="turtle"&&e.shell){ e.vy=Math.min(e.vy+.45,7); moveX(e); moveY(e);
+      if(e.vx===0){ e.shellT=(e.shellT||0)+1; if(e.shellT>480){ e.shell=0; e.vx=-0.6 } } }   // a still shell pops back into a turtle after ~8 s
     else { if(e.type==="hedge"&&e.ground){ const ahead=e.vx>0?Math.floor((e.x+e.w+1)/T):Math.floor((e.x-1)/T); if(!solid(ahead,Math.floor((e.y+e.h+1)/T))) e.vx=-e.vx }
       e.vy=Math.min(e.vy+.45,7); moveX(e); moveY(e) }
     if(e.y>L.H*T+20){ e.alive=false; continue }
     if(P.x<e.x+e.w&&P.x+P.w>e.x&&P.y<e.y+e.h&&P.y+P.h>e.y){
-      if(e.type==="berry"){ e.alive=false; score+=1000; pops.push({score:1000,x:e.x,y:e.y,t:0}); if(!P.big){ P.big=true; P.y-=12; P.h=26 } SFX.grow(); buzz(30) }
-      else if(e.type==="beetle"&&P.vy>0&&P.y+P.h-e.y<10){ kill(e,false); P.vy=input.jump?-7:-4.5; SFX.stomp(); buzz(25) }
+      if(e.type==="berry"){ e.alive=false; score+=1000; pops.push({score:1000,x:e.x,y:e.y,t:0});
+        if(!P.big){ P.big=true; P.y-=12; P.h=26 } else if(!P.fly){ P.fly=true; P.fuel=FLY_MAX } SFX.grow(); buzz(30) }
+      else if(e.type==="turtle"&&e.shell){   // shell: touch a still one to kick it, stomp a sliding one to stop it, sides of a sliding one hurt
+        if(e.vx!==0){ if(P.vy>0&&P.y+P.h-e.y<10){ e.vx=0; e.shellT=0; P.vy=input.jump?-7:-4.5; SFX.stomp(); buzz(25) } else hurt() }
+        else { e.vx=(P.x+P.w/2<e.x+e.w/2)?3.8:-3.8; e.shellT=0; if(P.vy>0) P.vy=-4.5; SFX.stomp(); buzz(25) } }
+      else if((e.type==="beetle"||e.type==="turtle")&&P.vy>0&&P.y+P.h-e.y<10){ if(e.type==="turtle"){ e.shell=1; e.shellT=0; e.vx=0; score+=100; pops.push({score:100,x:e.x,y:e.y,t:0}) } else kill(e,false); P.vy=input.jump?-7:-4.5; SFX.stomp(); buzz(25) }
       else hurt() } }
+  // a kicked shell plows through other enemies (and sets still shells sliding)
+  for(const s of ents){ if(!s.alive||s.dead||s.type!=="turtle"||!s.shell||s.vx===0) continue;
+    for(const o of ents){ if(o===s||!o.alive||o.dead||o.type==="berry") continue;
+      if(Math.abs(s.x-o.x)<14&&Math.abs(s.y-o.y)<14){ if(o.type==="turtle"&&o.shell){ if(o.vx===0){ o.vx=s.vx; o.shellT=0 } } else kill(o,true) } } }
   // enemies bump into each other
-  for(let i=0;i<ents.length;i++){ const a=ents[i]; if(!a.alive||a.dead||a.type==="berry") continue;
-    for(let j=i+1;j<ents.length;j++){ const b=ents[j]; if(!b.alive||b.dead||b.type==="berry") continue;
+  for(let i=0;i<ents.length;i++){ const a=ents[i]; if(!a.alive||a.dead||a.type==="berry"||(a.type==="turtle"&&a.shell)) continue;
+    for(let j=i+1;j<ents.length;j++){ const b=ents[j]; if(!b.alive||b.dead||b.type==="berry"||(b.type==="turtle"&&b.shell)) continue;
       if(Math.abs(a.x-b.x)<14&&Math.abs(a.y-b.y)<14){ if((a.x<b.x&&a.vx>0)||(a.x>b.x&&a.vx<0)) a.vx=-a.vx; if((b.x<a.x&&b.vx>0)||(b.x>a.x&&b.vx<0)) b.vx=-b.vx } } }
   for(const p of parts){ p.vy+=.3; p.x+=p.vx||0; p.y+=p.vy; p.life-- } parts=parts.filter(p=>p.life>0);
   for(const p of pops) p.t++; pops=pops.filter(p=>p.t<(p.score?40:8));
@@ -275,6 +289,7 @@ function drawPip(x,y,big,face,anim,inv){
   const h=big?26:14, S=PIP_SCALE;   // drawn bigger than the hitbox, anchored at the feet
   ctx.save(); ctx.translate(Math.round(x+5.5),Math.round(y+h)); ctx.scale(face<0?-S:S,S); ctx.translate(-6,-h);
   const step=P.ground?Math.floor(anim)%2:0, body="#14b8a6", dark="#0b7d72", belly="#c9fff5";
+  if(P.fly){ const wf=(frame>>2)%2; rect(-4,2-wf,4,3,"#ffffff"); rect(-6,4+wf,3,2,"#dbeafe") }   // flight wings, flapping
   if(big){
     rect(1,0,3,4,body); rect(8,0,3,4,body); rect(2,1,1,2,"#ffd0d6"); rect(9,1,1,2,"#ffd0d6");
     rect(0,3,12,9,body); rect(7,6,3,3,"#fff"); rect(9,7,1,2,"#111"); rect(10,9,3,2,dark); rect(12,9,1,1,"#111");
@@ -298,6 +313,11 @@ function drawEnt(e){
   if(e.type==="beetle"){ rect(x+1,y+3,12,8,"#5b3b8c"); rect(x+3,y+1,8,3,"#7d55b5"); rect(x+3,y+4,3,2,"#b39ddb");
     rect(x+(e.vx<0?0:10),y+7,4,4,"#2b1d40"); rect(x+(e.vx<0?1:11),y+8,1,1,"#fff");
     rect(x+2,y+11+(st?0:1),2,3,"#2b1d40"); rect(x+6,y+11+(st?1:0),2,3,"#2b1d40"); rect(x+10,y+11+(st?0:1),2,3,"#2b1d40") }
+  else if(e.type==="turtle"){ if(e.shell){ const wig=e.vx===0&&(e.shellT||0)>420?((frame>>2)%2?1:-1):0;   // shell alone; wiggles just before the turtle pops back out
+      rect(x+1+wig,y+6,12,7,"#2f9e44"); rect(x+3+wig,y+4,8,3,"#40c057"); rect(x+4+wig,y+8,2,2,"#a9e5b1"); rect(x+9+wig,y+8,2,2,"#a9e5b1") }
+    else { rect(x+1,y+4,12,8,"#2f9e44"); rect(x+3,y+2,8,3,"#40c057"); rect(x+4,y+5,2,2,"#a9e5b1"); rect(x+9,y+5,2,2,"#a9e5b1");
+      rect(x+(e.vx<0?-1:11),y+6,4,4,"#ffe08a"); rect(x+(e.vx<0?0:13),y+7,1,1,"#111");
+      rect(x+3,y+12+(st?0:1),2,2,"#e8c268"); rect(x+9,y+12+(st?1:0),2,2,"#e8c268") } }
   else { rect(x+1,y+5,12,8,"#8d6e63"); ctx.fillStyle="#4e342e"; for(let i=0;i<5;i++){ ctx.beginPath(); ctx.moveTo(x+1+i*2.6,y+6); ctx.lineTo(x+2.3+i*2.6,y+(i%2?0:1)); ctx.lineTo(x+3.6+i*2.6,y+6); ctx.fill() }
     rect(x+(e.vx<0?0:9),y+8,5,4,"#d7b49e"); rect(x+(e.vx<0?1:12),y+9,1,1,"#111"); rect(x+(e.vx<0?0:13),y+11,1,1,"#111");
     rect(x+3,y+13,2,1+(st?1:0),"#4e342e"); rect(x+9,y+13,2,1+(st?0:1),"#4e342e") }
@@ -307,6 +327,8 @@ function hud(){
   ctx.font="bold 8px ui-monospace,monospace"; ctx.textBaseline="top";
   const t=`SCORE ${String(score).padStart(6,"0")}   GEMS ${gems}   ${L.theme.name.toUpperCase()} ${lvIndex+1}-1   LIVES ${lives}`;
   ctx.fillStyle="rgba(0,0,0,.45)"; ctx.fillText(t,7,7); ctx.fillStyle="#fff"; ctx.fillText(t,6,6);
+  if(P&&P.fly){ const w=44, fx=VW*T-w-8; rect(fx,5,w,5,"rgba(0,0,0,.45)"); rect(fx,5,Math.round(w*Math.max(0,P.fuel)/FLY_MAX),5,"#7dd3fc");
+    ctx.fillStyle="#fff"; ctx.font="bold 6px ui-monospace,monospace"; ctx.fillText("FLY",fx,13) }
 }
 function draw(){
   if(!L) return; const th=L.theme; drawBg(th);
@@ -381,10 +403,10 @@ document.getElementById("autorun").onchange=e=>{ autorun=e.target.checked; local
 document.addEventListener("visibilitychange",()=>{ if(document.hidden&&state==="play") togglePause() });
 addEventListener("message",e=>{ if(e.data==="mhexeract:pause"&&state==="play") togglePause() });
 
-layout(); startLevel(pick,false); state="menu"; showMenu("Pip's Leap","Run, jump and stomp through three worlds. Bonk gem blocks for gems and berries."); requestAnimationFrame(loop);
-window.__pip={state:()=>({state,lv:lvIndex,x:P.x,y:P.y,vx:P.vx,vy:P.vy,big:P.big,ground:P.ground,lives,score,gems,VW,ents:ents.filter(e=>e.alive&&!e.dead).length}),
+layout(); startLevel(pick,false); state="menu"; showMenu("Pip's Leap","Run, jump and stomp through three worlds. Bonk blocks for gems and berries — a second berry lets you fly: hold jump in the air. Stomp turtles into shells, then kick the shells."); requestAnimationFrame(loop);
+window.__pip={state:()=>({state,lv:lvIndex,x:P.x,y:P.y,vx:P.vx,vy:P.vy,big:P.big,fly:P.fly,fuel:P.fuel,ground:P.ground,lives,score,gems,VW,ents:ents.filter(e=>e.alive&&!e.dead).length}),
   input,press:()=>{jumpPressed=1},start:(i)=>{ menu.classList.remove("show"); lives=3; score=0; gems=0; startLevel(i||0,false) },
-  teleport:(tx)=>{ P.x=tx*T; P.y=2*T; cam=Math.max(0,P.x-VW*T*.38) }, step:(n)=>{ for(let i=0;i<n;i++) update() }, addLife:()=>{lives=3}, level:()=>L, ents:()=>ents.filter(e=>e.alive&&!e.dead).map(e=>({type:e.type,x:e.x,y:e.y}))};
+  teleport:(tx,ty)=>{ P.x=tx*T; P.y=(ty===undefined?2:ty)*T; cam=Math.max(0,P.x-VW*T*.38) }, step:(n)=>{ for(let i=0;i<n;i++) update() }, addLife:()=>{lives=3}, level:()=>L, ents:()=>ents.filter(e=>e.alive&&!e.dead).map(e=>({type:e.type,x:e.x,y:e.y,vx:e.vx,shell:!!e.shell}))};
 })();
 </script>
 </body>
