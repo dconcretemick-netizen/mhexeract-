@@ -175,7 +175,7 @@ function newGame(){
     miles:0, lm:1, oxen:0, food:0, clothing:0, bullets:0,
     parts:{wheel:0,axle:0,tongue:0}, pace:"steady", rations:"filling",
     weather:"fair", rainUp:false, grassBad:0, riverDepth:0, riverWidth:0,
-    pendingDeaths:[], over:false, won:false, started:false, morale:70, guideDays:0 };
+    pendingDeaths:[], over:false, won:false, started:false, morale:70, guideDays:0, route:null };
 }
 function save(){ try{ if(S && !S.over) localStorage.setItem(SAVE_KEY, JSON.stringify(S)); }catch(e){} }
 function loadSave(){ try{ const r=localStorage.getItem(SAVE_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
@@ -199,6 +199,7 @@ function morale(){ if(S.morale==null) S.morale=70; return S.morale; }
 function addMorale(d){ S.morale=clamp(morale()+d,0,100); }
 function moraleWord(){ const m=morale(); return m>=75?"high":m>=50?"steady":m>=30?"low":"miserable"; }
 function guideLeft(){ if(S.guideDays==null) S.guideDays=0; return S.guideDays; }
+function finalRoute(){ if(S.route===undefined) S.route=null; return S.route; }
 function dateStr(){ return MONTHS[S.date.m-1]+" "+S.date.d+", 1848"; }
 function addDay(){
   S.days++; S.date.d++;
@@ -297,7 +298,7 @@ function titleScreen(){
   setScreen({ art:ART.title, lines:[
     "",
     "          T H E   O R E G O N   T R A I L",
-    "           ~  4 T H   E D I T I O N  ~",
+    "           ~  5 T H   E D I T I O N  ~",
     "",
     "You may:",
     "",
@@ -326,6 +327,14 @@ function learnScreen(){
     " * At the forts you can hire a trail guide — a",
     "   quicker pace and a safer eye at the rivers,",
     "   for as long as his days last.",
+    " * At The Dalles you must choose how to finish:",
+    "   raft the Columbia — free and swift, if the",
+    "   river lets you — or pay the Barlow Road toll",
+    "   for a slower, safer road around Mount Hood.",
+    " * Fellow emigrants may hail you with trades —",
+    "   cheap food, cash for a spare wagon part, an",
+    "   ox for flour. What is offered depends on",
+    "   what you have to trade with.",
     " * Reach Oregon before winter. Snow in the",
     "   mountains has ended many a journey — and if",
     "   December 31 comes, the trail ends with it.",
@@ -486,12 +495,17 @@ function statusLines(){
     "Health:        "+partyHealth(),
     "Morale:        "+moraleWord(),
     ...(guideLeft()>0?["Guide:         hired ("+guideLeft()+" days left)"]:[]),
+    ...(finalRoute()==="barlow"?["Route:         Barlow Toll Road"]:[]),
     "Food:          "+Math.round(S.food)+" pounds",
     "Next landmark: "+nextLM().name+", "+milesToNext()+" miles",
     "Miles traveled: "+Math.round(S.miles),
   ];
 }
 function travelScreen(extra){
+  const dl=LANDMARKS.find(l=>l.dalles);
+  if(!S.over && finalRoute()===null && nextLM() && nextLM().type==="end" && Math.abs(S.miles-dl.miles)<1){
+    dallesScreen(dl); return;   /* a save made at The Dalles, before choosing, asks again */
+  }
   pickWeather();
   setScreen({ lines:[].concat(extra||[], statusLines(), ["", "You may:"]),
     menu:[
@@ -656,6 +670,7 @@ function oneDay(){
   if(S.weather==="thunderstorm") mph*=0.65;
   if(S.weather==="heat wave") mph*=0.85;
   if(guideLeft()>0) mph*=1.1;
+  if(finalRoute()==="barlow") mph*=0.75;   /* the toll road climbs around Mount Hood */
   if(S.oxen<4) mph*=0.8;
   S.miles+=mph;
   const fed=eatDay();
@@ -866,6 +881,46 @@ const CHOICE_EVENTS=[
       { label:"Stay on the main trail", fn:()=>{ addMorale(1);
         return ["You stick to the known trail. Slow and",
           "sure has buried fewer folks than clever."]; } } ]) },
+  { ok:()=>S.money>=8, show:()=>showChoice(
+    ["A family falls in alongside you, their wagon",
+     "riding low. \"We bought too much in Independence",
+     "and the oxen feel every pound,\" the father says.",
+     "\"120 pounds of food for $8, and glad of it.\""],
+    [ { label:"Buy the food ($8)", fn:()=>{ S.money-=8; S.food+=120;
+        return ["You shift flour and bacon to your wagon.",
+          "Their oxen lift their heads a little; yours",
+          "settle a little lower. A fair trade all round."]; } },
+      { label:"No deal — roll on", fn:()=>
+        ["\"Suit yourself,\" he says, and falls back",
+         "to his own wagon's dust."] } ]) },
+  { ok:()=>S.parts.wheel+S.parts.axle+S.parts.tongue>=1, show:()=>showChoice(
+    ["A wagon behind you throws a wheel with a crack",
+     "like a rifle shot. Their captain rides up, cash",
+     "in hand: \"$12 for a spare part — wheel, axle or",
+     "tongue, whichever you can spare. Trail price.\""],
+    [ { label:"Sell a spare part ($12)", fn:()=>{ const part=S.parts.wheel>0?"wheel":S.parts.axle>0?"axle":"tongue";
+        S.parts[part]--; S.money+=12;
+        return ["You hand over your spare "+PARTNAME[part]+".",
+          "He counts out $12 and rides back at a gallop.",
+          "You pray your own wagon holds together."]; } },
+      { label:"Keep your spares — roll on", fn:()=>{ addMorale(-1);
+        return ["You shake your head. He curses, not at you",
+          "exactly, and rides back to his crippled wagon.",
+          "Your spares ride on with you — as they may",
+          "well need to."]; } } ]) },
+  { ok:()=>S.food>=100, show:()=>showChoice(
+    ["A wagon limps alongside, axles groaning — too",
+     "heavy by half, and a sound spare ox walking",
+     "behind it. \"100 pounds of food for the ox,\"",
+     "the driver calls. \"We eat the food; the ox",
+     "eats us alive in grass and trouble.\""],
+    [ { label:"Trade 100 pounds of food for the ox", fn:()=>{ S.food-=100; S.oxen++;
+        return ["You measure out the food and take the ox",
+          "in hand. He is broad, calm and strong —",
+          "worth every pound, and then some."]; } },
+      { label:"Keep your food — roll on", fn:()=>
+        ["\"Your loss,\" he shrugs, and limps on, the",
+         "ox trailing behind him like a pet."] } ]) },
 ];
 const EVENTS=[
   function coldSpring(){
@@ -1121,22 +1176,30 @@ function crossRiver(lm, method){
 
 /* ============================== The Dalles ============================== */
 function dallesScreen(lm){
-  S.lm++;
-  setScreen({ art:ART.river, lines:[lm.desc,"",
+  if(LANDMARKS[S.lm]===lm) S.lm++;
+  const lines=[lm.desc,"",
     "The toll road costs $10. The river costs nothing —",
-    "but the Columbia has swallowed wagons before."],
+    "but the Columbia has swallowed wagons before.",
+    "",
+    "Rafting is swift: two days down the current, if",
+    "the river lets you. The Barlow Road is a road —",
+    "slow, steep and safe, at ox-pace around the",
+    "mountain, the better part of two weeks."];
+  if(S.money<10) lines.push("","You do not have the $10 for the toll. For you,",
+    "there is only the river.");
+  setScreen({ art:ART.river, lines,
     menu:[
       {label:"Take the Barlow Toll Road ($10)", disabled:S.money<10, fn:()=>{
-          S.money-=10;
+          S.money-=10; S.route="barlow";
           travelScreen(["You pay the toll and take the Barlow Road around",
             "Mount Hood. It is rough and steep, but it is a road.",
             "The Willamette Valley lies just ahead."]);
         }},
-      {label:"Raft the Columbia River", fn:raftColumbia},
+      {label:"Raft the Columbia River", fn:()=>{ S.route="raft"; raftColumbia(); }},
     ] });
 }
 function raftColumbia(){
-  addDay(); eatDay();
+  addDay(); eatDay(); addDay(); eatDay();   /* two days on the water — swift, next to the road */
   const lines=["You lash your wagon onto a rough log raft and push",
     "out into the Columbia. The river takes you swiftly",
     "down between walls of black rock..."];
