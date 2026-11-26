@@ -76,6 +76,11 @@ section#v-home.active{display:flex;flex-direction:column;height:100%;gap:var(--g
 .tile.accent small{color:color-mix(in srgb,var(--accent-ink) 78%,transparent)}
 .tile.term{background:#0d1216;color:#7dff8a;border-color:#24303a;font-family:var(--mono)}
 .tile.term small{color:#4a7a52}
+.tile{position:relative}
+.tctl{position:absolute;top:6px;right:6px;display:none;gap:6px;z-index:2}
+#v-home.editing .tctl{display:flex}
+.tctl i{font-style:normal;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;display:grid;place-items:center;font-size:13px;border:1px solid rgba(255,255,255,.4);cursor:pointer}
+#v-home.editing .tile{outline:1px dashed var(--border);outline-offset:-1px}
 .fab{position:fixed;right:16px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:60;width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer}
 .fab svg{width:24px;height:24px}
 @media (min-width:900px){
@@ -446,16 +451,24 @@ body{padding-bottom:calc(74px + env(safe-area-inset-bottom))}
         </div>
       </div>
     </div>
+    <div class="row" style="margin-top:var(--gap)">
+      <span class="home-sub" style="flex:1">Tap a tile to open it — or arrange them your way.</span>
+      <button class="btn" id="tiles-edit">Edit tiles</button>
+      <button class="btn" id="tiles-reset" hidden>Reset</button>
+      <button class="btn primary" id="tiles-done" hidden>Done</button>
+    </div>
     <div class="tiles" id="home-tiles">
       <button class="tile accent" data-go="playground"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><b>Chat</b><small>Ask MHexeract anything — it picks the best AI for the job</small></button>
       <button class="tile" data-go="news"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h13v16H6a2 2 0 0 1-2-2z"/><path d="M17 8h3v10a2 2 0 0 1-2 2"/><path d="M8 8h5M8 12h5M8 16h3"/></svg><b>News</b><small id="tile-news-sub">Top stories from across the spectrum</small></button>
-      <button class="tile term" data-go="games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3M15 12h.01M18 13h.01"/></svg><b>Games</b><small>OREGON TRAIL · APPLE IIe EDITION · 3RD EDITION — PRESS TO PLAY</small></button>
+      <button class="tile term" data-go="games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3M15 12h.01M18 13h.01"/></svg><b>Games</b><small>OREGON TRAIL · APPLE IIe EDITION · 5TH EDITION — PRESS TO PLAY</small></button>
       <button class="tile" data-go="obd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l4.5-4.5"/><path d="M2 14h2M20 14h2M12 6V4"/></svg><b>Car diagnostics</b><small id="tile-obd-sub">Not connected</small></button>
       <button class="tile" data-go="toolbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4.5 4.5 0 0 0-6 6L3 18l3 3 5.7-5.7a4.5 4.5 0 0 0 6-6L14 13l-3-3 3.7-3.7z"/></svg><b>Toolbox</b><small id="tile-ai-sub">Keys, background jobs and the AI pool</small></button>
       <button class="tile" data-go="update"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><b>Update</b><small id="tile-upd-sub">Check for the newest MHexeract</small></button>
       <button class="tile" data-go="uses"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg><b>What it's for</b><small>The best uses for MHexeract — and how it stays free</small></button>
       <button class="tile" data-go="board"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 8h8M8 12h5"/></svg><b>Message board</b><small>Message the developer — posts save on this device</small></button>
+      <button class="tile" data-go="web"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9s-1.4 6.4-3.9 9c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3z"/></svg><b>Web</b><small>Browse the web — pages open right in the app</small></button>
     </div>
+    <div id="tiles-add" hidden style="margin-top:var(--gap)"></div>
   </section>
 
   <section class="view" id="v-playground">
@@ -1005,12 +1018,50 @@ $("#menu-newchat").addEventListener("click",()=>{ closeMenu();
 
 /* ---------- home: live tiles (Windows) with Android touches ---------- */
 document.querySelectorAll("#home-tiles [data-go]").forEach(b=>b.addEventListener("click",()=>{
+  if(tilesEditing) return;   // in edit mode a tap arranges tiles, it does not navigate
   const tab=document.querySelector(`nav.tabs button[data-v="${b.dataset.go}"]`);
   if(tab) tab.click(); else showView(b.dataset.go);
 }));
 $("#brand-home").addEventListener("click",()=>{ document.querySelector('nav.tabs button[data-v="home"]')?.click(); });
 $("#btn-uses")?.addEventListener("click",()=>showView("uses"));
 $("#btn-uses-keys")?.addEventListener("click",()=>document.querySelector('nav.tabs button[data-v="toolbox"]')?.click());
+/* ---------- home tiles: move, remove and add — the arrangement is saved on this device ---------- */
+const TILES_KEY="mhexeract.tiles";
+const tilesBox=$("#home-tiles"), homeSec=$("#v-home");
+const TILE_DEFAULT=[...tilesBox.querySelectorAll("[data-go]")].map(t=>t.dataset.go);
+let tilesEditing=false;
+function saveTiles(){ const all=[...tilesBox.querySelectorAll("[data-go]")];
+  try{ localStorage.setItem(TILES_KEY,JSON.stringify({order:all.map(t=>t.dataset.go),hidden:all.filter(t=>t.style.display==="none").map(t=>t.dataset.go)})) }catch(e){} }
+function arrangeTiles(order,hidden){ const byId={}; [...tilesBox.querySelectorAll("[data-go]")].forEach(t=>byId[t.dataset.go]=t);
+  (order||[]).forEach(id=>{ if(byId[id]) tilesBox.appendChild(byId[id]) });
+  [...tilesBox.querySelectorAll("[data-go]")].forEach(t=>{ t.style.display=(hidden||[]).includes(t.dataset.go)?"none":"" }) }
+function applyTiles(){ let st=null; try{ st=JSON.parse(localStorage.getItem(TILES_KEY)) }catch(e){}
+  if(st&&Array.isArray(st.order)) arrangeTiles(st.order,Array.isArray(st.hidden)?st.hidden:[]);
+  else arrangeTiles(TILE_DEFAULT,["web"]);   // the Web tile starts off Home until added
+  renderAddTray() }
+function renderAddTray(){ const tray=$("#tiles-add"); if(!tray) return;
+  const hidden=[...tilesBox.querySelectorAll("[data-go]")].filter(t=>t.style.display==="none");
+  tray.innerHTML = hidden.length? `<span class="home-sub">Add tiles: </span>`+hidden.map(t=>`<button class="btn" data-add="${t.dataset.go}">+ ${esc(t.querySelector("b").textContent)}</button>`).join(" ")
+    : `<span class="home-sub">Every tile is on your Home screen.</span>`;
+  tray.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{ const t=tilesBox.querySelector(`[data-go="${b.dataset.add}"]`);
+    if(t){ t.style.display=""; saveTiles(); renderAddTray() } }) }
+tilesBox.querySelectorAll("[data-go]").forEach(t=>{ const c=document.createElement("span"); c.className="tctl";
+  c.innerHTML=`<i data-act="left" title="Move earlier">◀</i><i data-act="right" title="Move later">▶</i><i data-act="hide" title="Remove tile">✕</i>`; t.appendChild(c) });
+tilesBox.addEventListener("click",e=>{ const i=e.target.closest("[data-act]"); if(!i||!tilesEditing) return;
+  const tile=i.closest("[data-go]"); if(!tile) return; const act=i.dataset.act;
+  if(act==="hide") tile.style.display="none";
+  else { const vis=[...tilesBox.querySelectorAll("[data-go]")].filter(t=>t.style.display!=="none");
+    const ix=vis.indexOf(tile), other=vis[act==="left"?ix-1:ix+1]; if(!other) return;
+    if(act==="left") tilesBox.insertBefore(tile,other); else tilesBox.insertBefore(other,tile) }
+  saveTiles(); renderAddTray() });
+function setTilesEditing(on){ tilesEditing=on; homeSec.classList.toggle("editing",on);
+  $("#tiles-edit").hidden=on; $("#tiles-done").hidden=!on; $("#tiles-reset").hidden=!on; $("#tiles-add").hidden=!on;
+  if(on) renderAddTray() }
+$("#tiles-edit").addEventListener("click",()=>setTilesEditing(true));
+$("#tiles-done").addEventListener("click",()=>setTilesEditing(false));
+$("#tiles-reset").addEventListener("click",()=>{ try{ localStorage.removeItem(TILES_KEY) }catch(e){}
+  arrangeTiles(TILE_DEFAULT,["web"]); saveTiles(); renderAddTray(); toast("Tiles back to the default layout") });
+applyTiles();
 async function loadHome(){
   const h=new Date().getHours();
   $("#home-greet").textContent = h<12?"Good morning":h<18?"Good afternoon":"Good evening";
